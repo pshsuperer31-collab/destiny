@@ -1175,6 +1175,271 @@ function calcZiwei2(solarYear, solarMonth, solarDay, solarHour, gender, saju, is
   return { palaces, ju, JU_NAMES, JU_STAR, mingGong, shenGong, zimiPos, siHwa };
 }
 
+/* ═══════════════════════════════════════════════════════════
+   자미두수 격국(格局) 판정 함수
+   palaces 배열 + siHwa(사화) 기반으로 격국 자동 판별
+   ═══════════════════════════════════════════════════════════ */
+const ZW_GEOKGUK = [
+  /* ─────────── 1급 최귀격 ─────────── */
+  {
+    name:'자미탐랑격(紫微貪狼格)', grade:1, type:'귀',
+    desc:'제왕의 별(紫微)과 욕망의 별(貪狼)이 명궁에 함께하여 권력·재물·명예·이성을 모두 갖추는 최고의 구조입니다.',
+    tip:'다재다능하고 카리스마가 강하지만, 욕심이 과하면 실족할 수 있습니다. 한 가지에 집중하는 것이 성공의 열쇠.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      const names = ming ? [...ming.mains.map(s=>s.name)] : [];
+      return names.includes('紫微') && names.includes('貪狼');
+    }
+  },
+  {
+    name:'자미파군격(紫微破軍格)', grade:1, type:'귀',
+    desc:'제왕의 별(紫微)과 개혁의 별(破軍)이 명궁에 동궁하여 기존 체제를 파괴하고 새로운 질서를 만드는 혁신가 기질입니다.',
+    tip:'파괴와 창조를 반복하는 인생. 기존 틀을 깨는 사업·예술·개혁 분야에서 빛납니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      const names = ming ? ming.mains.map(s=>s.name) : [];
+      return names.includes('紫微') && names.includes('破軍');
+    }
+  },
+  {
+    name:'자부동궁격(紫府同宮格)', grade:1, type:'귀',
+    desc:'제왕의 별(紫微)과 창고의 별(天府)이 동궁하여 권력과 재물을 동시에 갖추는 최고의 부귀쌍전 구조입니다.',
+    tip:'권력과 재물이 자연스럽게 따라오는 구조. 오만하지 않으면 평생 풍요가 지속됩니다.',
+    check(pals, siHwa) {
+      for(const p of pals) {
+        const names = p.mains.map(s=>s.name);
+        if(names.includes('紫微') && names.includes('天府')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'일월동궁격(日月同宮格)', grade:1, type:'귀',
+    desc:'태양(太陽)과 달(太陰)이 丑궁에서 동궁하여 음양이 완전히 조화를 이루는 최고의 인격 구조입니다. 남녀 모두에게 인기가 있고 리더십이 탁월합니다.',
+    tip:'균형 잡힌 성품으로 어떤 환경에서도 인정받습니다. 공과 사의 균형을 유지하세요.',
+    check(pals, siHwa) {
+      // 丑궁(palIdx 기준)에서 태양+태음 동궁 - 丑은 ZW_PALS 순서상 위치 확인
+      for(const p of pals) {
+        const names = p.mains.map(s=>s.name);
+        if(names.includes('太陽') && names.includes('太陰') && p.zhi==='丑') return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'기월동량격(機月同梁格)', grade:1, type:'귀',
+    desc:'天機·太陰·天同·天梁의 지혜롭고 조화로운 별들이 명궁 삼방사정에 배치되어 지혜·감성·조화가 완성되는 구조입니다.',
+    tip:'공무원·교육·복지·서비스업에서 최고의 성취를 이룹니다. 안정적이고 꾸준한 성장이 특징.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const mingIdx = ming.pos;
+      // 명궁 삼방사정 인덱스 (명·재백·관록·천이)
+      const triPals = [ming.palName, '財帛', '官祿', '遷移'];
+      const stars4 = ['天機','太陰','天同','天梁'];
+      let count = 0;
+      pals.forEach(p=>{
+        if(triPals.includes(p.palName)) {
+          p.mains.forEach(s=>{ if(stars4.includes(s.name)) count++; });
+        }
+      });
+      return count >= 3;
+    }
+  },
+
+  /* ─────────── 2급 귀격 ─────────── */
+  {
+    name:'무탐동격(武貪同格)', grade:2, type:'귀',
+    desc:'재물의 별(武曲)과 욕망의 별(貪狼)이 동궁하여 큰 재물을 모으는 강력한 재물 구조입니다.',
+    tip:'사업·투자·금융에서 큰 성공을 거두는 구조. 중년 이후 특히 재물운이 강해집니다.',
+    check(pals, siHwa) {
+      const targets = ['命宮','財帛','官祿'];
+      for(const p of pals) {
+        if(!targets.includes(p.palName)) continue;
+        const names = p.mains.map(s=>s.name);
+        if(names.includes('武曲') && names.includes('貪狼')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'무부동궁격(武府同宮格)', grade:2, type:'귀',
+    desc:'재물의 별 武曲과 天府가 동궁하여 재물을 안정적으로 축적하는 탁월한 구조입니다.',
+    tip:'꾸준히 재물을 모으는 능력이 뛰어납니다. 사업과 투자 모두에서 안정적 수익을 냅니다.',
+    check(pals, siHwa) {
+      for(const p of pals) {
+        const names = p.mains.map(s=>s.name);
+        if(names.includes('武曲') && names.includes('天府')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'명조원진격(明照垣展格)', grade:2, type:'귀',
+    desc:'太陽이 묘(廟)·왕(旺)으로 命·官·遷 삼방에 위치하여 태양이 세상을 환하게 비추는 명예의 구조입니다.',
+    tip:'사회적 명성과 대중적 인기를 얻는 구조. 공직·교육·언론·방송 분야에서 탁월합니다.',
+    check(pals, siHwa) {
+      const targets = ['命宮','官祿','遷移'];
+      for(const p of pals) {
+        if(!targets.includes(p.palName)) continue;
+        const sol = p.mains.find(s=>s.name==='太陽');
+        if(sol && (sol.mwh==='廟'||sol.mwh==='旺')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'월랑천문격(月朗天門格)', grade:2, type:'귀',
+    desc:'太陰이 亥궁(天門)에서 묘(廟)로 명궁 또는 재백궁에 위치하여 달이 가장 아름다운 자리에서 빛나는 구조입니다.',
+    tip:'예술·감성·문학 분야에서 탁월한 재능을 발휘합니다. 부동산과 재물운도 강합니다.',
+    check(pals, siHwa) {
+      const targets = ['命宮','財帛'];
+      for(const p of pals) {
+        if(!targets.includes(p.palName) || p.zhi!=='亥') continue;
+        const moon = p.mains.find(s=>s.name==='太陰');
+        if(moon && (moon.mwh==='廟'||moon.mwh==='旺')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'탐랑입묘격(貪狼入廟格)', grade:2, type:'귀',
+    desc:'貪狼이 子·午궁에서 廟·旺으로 명궁에 위치하여 욕망의 별이 최대 에너지로 작동하는 구조입니다.',
+    tip:'예술·다재다능·이성운이 극강합니다. 중년 이후 발복하는 구조로 서두르지 않는 것이 중요.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const tl = ming.mains.find(s=>s.name==='貪狼');
+      return tl && (tl.mwh==='廟'||tl.mwh==='旺') && (ming.zhi==='子'||ming.zhi==='午');
+    }
+  },
+  {
+    name:'염정조두격(廉貞朝斗格)', grade:2, type:'귀',
+    desc:'廉貞이 寅궁에서 명궁에 위치하는 특수 귀격으로, 강렬한 에너지가 북두성을 향해 나아가는 형상입니다.',
+    tip:'법조·군인·의료 분야에서 탁월한 성취를 이루는 구조. 강한 의지와 추진력이 성공을 만듭니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming || ming.zhi!=='寅') return false;
+      return ming.mains.some(s=>s.name==='廉貞');
+    }
+  },
+
+  /* ─────────── 3급 재물격 ─────────── */
+  {
+    name:'쌍록격(雙祿格)', grade:3, type:'귀',
+    desc:'祿存과 化祿이 같은 궁(명궁·재백궁)에 동궁하여 재물의 별이 두 겹으로 겹치는 최고의 재물 구조입니다.',
+    tip:'평생 재물이 넘치는 구조입니다. 돈을 쓸수록 더 들어오는 순환이 형성됩니다.',
+    check(pals, siHwa) {
+      const targets = ['命宮','財帛'];
+      for(const p of pals) {
+        if(!targets.includes(p.palName)) continue;
+        const hasLuCun = p.sals.some(s=>s.name==='祿存');
+        const hasHuaLu = p.auxs.some(s=>s.name==='化祿') ||
+          p.mains.some(s=>s.name===siHwa['化祿']);
+        if(hasLuCun && hasHuaLu) return true;
+        // 또는 화록이 해당 궁의 주성에 붙어있는 경우
+        const palStarNames = p.mains.map(s=>s.name);
+        if(hasLuCun && palStarNames.includes(siHwa['化祿']||'__')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'재음협인격(財蔭夾印格)', grade:3, type:'귀',
+    desc:'명궁 양옆 궁에 天府(재물)와 天梁(보호·음덕)이 협(夾)하여 명궁을 감싸는 구조로, 평생 재물이 안정되고 위험에서 보호받습니다.',
+    tip:'어려울 때 구해주는 귀인이 항상 있습니다. 재물을 잘 지키는 능력이 탁월합니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const mingPos = ming.pos;
+      const prevPal = pals[((mingPos-1)+12)%12];
+      const nextPal = pals[(mingPos+1)%12];
+      const neighborNames = [
+        ...prevPal.mains.map(s=>s.name),
+        ...nextPal.mains.map(s=>s.name)
+      ];
+      return neighborNames.includes('天府') && neighborNames.includes('天梁');
+    }
+  },
+
+  /* ─────────── 흉격 ─────────── */
+  {
+    name:'염정칠살격(廉貞七殺格)', grade:4, type:'흉',
+    desc:'투쟁의 별(廉貞)과 살성의 별(七殺)이 명·재·관 삼방에 동궁하여 인생에 충돌·갈등·법적 문제가 많은 구조입니다.',
+    tip:'강렬한 에너지를 군인·경찰·외과·스포츠 등 합법적 경쟁 분야로 발산하면 오히려 강점이 됩니다.',
+    check(pals, siHwa) {
+      const targets = ['命宮','財帛','官祿'];
+      for(const p of pals) {
+        if(!targets.includes(p.palName)) continue;
+        const names = p.mains.map(s=>s.name);
+        if(names.includes('廉貞') && names.includes('七殺')) return true;
+      }
+      return false;
+    }
+  },
+  {
+    name:'화기충명격(化忌沖命格)', grade:4, type:'흉',
+    desc:'化忌가 명궁의 대궁(遷移宮)에 위치하여 시련의 사화가 명궁을 직접 충하는 구조입니다. 반복적 시련과 자아 불안정이 인생의 주제가 됩니다.',
+    tip:'시련을 통해 강인한 내공이 쌓이는 구조입니다. 역경을 성장의 기회로 받아들이는 마음가짐이 핵심입니다.',
+    check(pals, siHwa) {
+      const cheon = pals.find(p=>p.palName==='遷移');
+      if(!cheon) return false;
+      const huaji = siHwa['化忌'];
+      if(!huaji) return false;
+      return cheon.mains.some(s=>s.name===huaji) ||
+             cheon.auxs.some(s=>s.name===huaji);
+    }
+  },
+  {
+    name:'공겁협명격(空劫夾命格)', grade:4, type:'흉',
+    desc:'地空과 地劫이 명궁 양옆을 협(夾)하여 허무와 손실의 에너지가 명궁을 감싸는 구조입니다.',
+    tip:'물질적 손실이 반복되지만 종교·예술·철학 분야에서는 오히려 강한 통찰력을 발휘합니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const prevPal = pals[((ming.pos-1)+12)%12];
+      const nextPal = pals[(ming.pos+1)%12];
+      const hasKong = (pal) => pal.sals.some(s=>s.name==='地空');
+      const hasJie  = (pal) => pal.sals.some(s=>s.name==='地劫');
+      return (hasKong(prevPal)&&hasJie(nextPal)) || (hasJie(prevPal)&&hasKong(nextPal));
+    }
+  },
+  {
+    name:'양타협명격(羊陀夾命格)', grade:4, type:'흉',
+    desc:'擎羊과 陀羅가 명궁 양옆을 협(夾)하는 구조로, 자미두수 최악의 흉격 중 하나입니다. 충격적 사건과 인생 기복이 매우 큽니다.',
+    tip:'강렬한 역경을 겪지만 그것이 최강의 내공으로 변환됩니다. 의지력과 생존력은 누구보다 강합니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const prevPal = pals[((ming.pos-1)+12)%12];
+      const nextPal = pals[(ming.pos+1)%12];
+      const hasYang = (pal) => pal.sals.some(s=>s.name==='擎羊');
+      const hasTuo  = (pal) => pal.sals.some(s=>s.name==='陀羅');
+      return (hasYang(prevPal)&&hasTuo(nextPal)) || (hasTuo(prevPal)&&hasYang(nextPal));
+    }
+  },
+  {
+    name:'일월실휘격(日月失輝格)', grade:4, type:'흉',
+    desc:'太陽이 陷(함)으로 명궁에 위치하거나 太陰이 陷으로 명궁에 위치하여 태양과 달이 빛을 잃은 구조입니다. 부모 덕이 약하고 사회적 인정받기가 어렵습니다.',
+    tip:'외부의 인정보다 내면의 성취에 집중하는 것이 행복의 열쇠입니다. 자수성가형 인생입니다.',
+    check(pals, siHwa) {
+      const ming = pals.find(p=>p.palName==='命宮');
+      if(!ming) return false;
+      const sol = ming.mains.find(s=>s.name==='太陽');
+      const moon = ming.mains.find(s=>s.name==='太陰');
+      return (sol&&sol.mwh==='陷') || (moon&&moon.mwh==='陷');
+    }
+  },
+];
+
+/* 자미두수 격국 판정 실행 */
+function detectZwGeokguk(palaces, siHwa) {
+  return ZW_GEOKGUK.filter(g => {
+    try { return g.check(palaces, siHwa); }
+    catch(e) { return false; }
+  });
+}
+
 
 
 // 지지별 지장간 [여기, 중기, 본기]
@@ -3004,9 +3269,55 @@ function getStarDesc(starName, palName) {
   return null;
 }
 
-/* ═══════════════════════════════════════════════════════
-   자미두수 궁 상세 팝업 — 클릭 시 종합 풀이 표시
-═══════════════════════════════════════════════════════ */
+/* 자미두수 격국 상세 팝업 */
+function showZwGeokDetail(geokIdx) {
+  const g = ZW_GEOKGUK[geokIdx];
+  if(!g) return;
+
+  const existing = document.getElementById('zw-geok-detail');
+  if(existing) existing.remove();
+
+  const isGood = g.type === '귀';
+  const gradeColors = {1:'#0e7c6a',2:'#1a5fa8',3:'#b07d1a',4:'#c0392b'};
+  const gradeBg = {1:'#d0f0eb',2:'#d6e4ff',3:'#fff3cd',4:'#fee2e0'};
+  const gradeLabel = {1:'최귀격(最貴格)',2:'귀격(貴格)',3:'재물격(財物格)',4:'흉격(凶格)'};
+  const color = gradeColors[g.grade];
+  const bg = gradeBg[g.grade];
+
+  const html = `<div id="zw-geok-detail"
+    style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);
+    z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;"
+    onclick="if(event.target===this)this.remove()">
+    <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;
+      box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;">
+      <div style="background:${color};color:#fff;padding:16px 20px;
+        display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px;">${gradeLabel[g.grade]}</div>
+          <div style="font-family:'Noto Serif KR',serif;font-size:18px;font-weight:700;">
+            ${isGood?'✨':'⚠'} ${g.name}
+          </div>
+        </div>
+        <button onclick="document.getElementById('zw-geok-detail').remove()"
+          style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:50%;
+          width:30px;height:30px;cursor:pointer;font-size:16px;">✕</button>
+      </div>
+      <div style="padding:20px;">
+        <div style="background:${bg};border-radius:10px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:14px;color:#333;line-height:1.8;">${g.desc}</div>
+        </div>
+        <div style="background:#f0fdf9;border-left:3px solid #0e7c6a;border-radius:0 8px 8px 0;
+          padding:12px 14px;">
+          <div style="font-size:11px;font-weight:700;color:#0e7c6a;margin-bottom:4px;">💡 활용 가이드</div>
+          <div style="font-size:13px;color:#333;line-height:1.7;">${g.tip}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/* 자미두수 궁 상세 팝업 — 클릭 시 종합 풀이 표시 */
 function showZwPalaceDetail(palIdx) {
   const zp = window._zwPalaces;
   if(!zp) return;
@@ -3972,6 +4283,32 @@ function renderZw(zwData, saju, dwArr, sy, sm, sd, sh, gender, origHr){
             return`<span style="${isCur?'font-weight:700;color:#0000cc;':''}">${d.age} ${GH[d.g]}${JH[d.j]}</span>`;
           }).join('  ');
 
+          // 격국 판정
+          const zwGeok = detectZwGeokguk(palaces, siHwa);
+          window._zwGeokguk = zwGeok;
+          const geokHtml = zwGeok.length ? `
+            <div style="width:100%;margin-top:10px;border-top:1px solid #ddd;padding-top:10px;">
+              <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;letter-spacing:0.05em;">자미두수 격국(格局)</div>
+              ${zwGeok.map(g=>{
+                const isGood = g.type==='귀';
+                const gradeColors = {1:'#0e7c6a',2:'#1a5fa8',3:'#b07d1a',4:'#c0392b'};
+                const gradeBg = {1:'#d0f0eb',2:'#d6e4ff',3:'#fff3cd',4:'#fee2e0'};
+                const gradeLabel = {1:'★최귀격',2:'귀격',3:'재물격',4:'흉격'};
+                const color = gradeColors[g.grade];
+                const bg = gradeBg[g.grade];
+                return `<div style="background:${bg};border:1px solid ${color};border-radius:6px;
+                  padding:6px 10px;margin-bottom:5px;cursor:pointer;text-align:left;"
+                  onclick="showZwGeokDetail(${ZW_GEOKGUK.indexOf(g)})">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-family:'Noto Serif KR',serif;font-size:12px;font-weight:700;color:${color};">
+                      ${isGood?'✨':'⚠'} ${g.name}
+                    </span>
+                    <span style="font-size:9px;background:${color};color:#fff;padding:1px 5px;border-radius:8px;">${gradeLabel[g.grade]}</span>
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>` : '';
+
           cDiv.innerHTML=`
             <div class="zw-ctr-saju" style="margin-bottom:14px;">
               <div class="zw-ctr-gan">${GH[saju[3].g]} ${GH[saju[2].g]} ${GH[saju[1].g]} ${GH[saju[0].g]}</div>
@@ -3993,7 +4330,8 @@ function renderZw(zwData, saju, dwArr, sy, sm, sd, sh, gender, origHr){
             <div class="zw-ctr-info" style="text-align:center;margin-top:10px;">
               <div>${JU_NAMES[ju]} · 명궁 ${ZW_ZHI_H_ZI[mingGong]}宮 · 현재 ${cy-sy}세</div>
               <div style="color:#888;font-size:10px;margin-top:2px;">군시차 -32분(서울) 적용${origHr != null && origHr !== sh ? ` · ${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][origHr]}→${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][sh]}時 보정` : ''}</div>
-            </div>`;
+            </div>
+            ${geokHtml}`;
           el.appendChild(cDiv);
           centerAdded=true;
         }
