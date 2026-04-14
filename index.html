@@ -4195,13 +4195,10 @@ function calcDwGeok(s, dwG, dwJ, dwScore) {
   const GAN_NM=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
   const JI_NM =['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
-  // 대운 지지의 본기(本氣) 추출
-  // 왕지(子午卯酉)는 지장간이 하나라 [0]이 본기, 일반지지는 [2]가 본기
-  const WANG_JI_SET = new Set([0,3,6,9]); // 子卯午酉
+  // ── 대운格 본기 추출 ──
+  const WANG_JI_SET = new Set([0,3,6,9]);
   const bongiPos = WANG_JI_SET.has(dwJ) ? 0 : 2;
-  const dwBongiGan = JJG_DETAIL[dwJ][bongiPos]
-                  || JJG_DETAIL[dwJ][1]
-                  || JJG_DETAIL[dwJ][0]; // fallback
+  const dwBongiGan = JJG_DETAIL[dwJ][bongiPos] || JJG_DETAIL[dwJ][1] || JJG_DETAIL[dwJ][0];
   if(!dwBongiGan) return null;
   const dwBongiIdx = GH_IDX[dwBongiGan];
   if(dwBongiIdx == null) return null;
@@ -4218,47 +4215,167 @@ function calcDwGeok(s, dwG, dwJ, dwScore) {
     '偏印':'편인격(偏印格·梟神格)','正印':'정인격(正印格)'};
   const name = ssMap[ss] || ss+'格';
 
-  // 대운 천간이 대운格 오행을 투출하는지 체크
+  const score5 = dwScore || s.map(()=>0);
+  const jiList  = s.map(p=>p.j);
+  const ganList = s.map(p=>p.g);
+
+  // ── 대운格 파격 판정 (원국格 기준과 동일) ──
+  // 1) 대운 천간 투출 여부
   const dwTouChul = GEL[dwG] === dwBongiEl;
 
-  // 대운格 파격 체크 (원국 지지와의 충 관계)
-  const jiList = s.map(p=>p.j);
-  const mJiChung = [0,6,3,9,1,7,4,10,2,8,5,11];
-  const dwJChungTarget = mJiChung[dwJ];
-  const dwPagyeok_chung = jiList.some(j => j === dwJChungTarget);
+  // 2) 대운 지지가 원국 지지와 충 → 格의 뿌리 손상
+  const CHUNG_MAP = [6,7,8,9,10,11,0,1,2,3,4,5];
+  const dwJChungTarget = CHUNG_MAP[dwJ];
+  const pagyeok_mji_chung = jiList.some(j => j === dwJChungTarget);
 
-  // 대운格 강도 계산
+  // 3) 투출된 格 천간(대운 천간)이 원국 천간에게 충극받는지
+  const GEUK_GAN5 = {0:[6,7],1:[8,9],2:[0,1],3:[2,3],4:[4,5]};
+  const enemyGans5 = GEUK_GAN5[dwBongiEl] || [];
+  const pagyeok_touChul_attacked = dwTouChul && ganList.some(g => enemyGans5.includes(g));
+
+  // 4) 대운 천간이 합거에 묶이는지
+  const GAN_HAP_MAP5 = {0:4,4:0,1:6,6:1,2:7,7:2,3:8,8:3,9:4};
+  const hapPeer = GAN_HAP_MAP5[dwG];
+  const pagyeok_hap = hapPeer!=null && ganList.includes(hapPeer);
+
+  // 5) 格극 천간 존재 (미투출 경우)
+  const pagyeok_basic = !dwTouChul && ganList.some(g => GEUK_GAN5[dwBongiEl]?.includes(g));
+
+  // ── 格 강도 스케일링 (원국格과 동일 기준) ──
   let dwGeokStrength = 100;
-  if(!dwTouChul) dwGeokStrength -= 30;
-  if(dwPagyeok_chung) dwGeokStrength -= 25;
+  if(!dwTouChul)                 dwGeokStrength -= 20;
+  if(pagyeok_mji_chung)          dwGeokStrength -= 50; // 월지충 → 뿌리 직접 손상
+  if(pagyeok_touChul_attacked)   dwGeokStrength -= 15;
+  if(pagyeok_hap)                dwGeokStrength -= 10;
+  if(pagyeok_basic)              dwGeokStrength -= 15;
   dwGeokStrength = Math.max(10, dwGeokStrength);
 
-  // 대운格 용신 계산 (억부 방식으로)
-  const sg = calcShinGangYak(s, dwScore || s.map(()=>0));
-  const eb = calcEokbuYongshin(s, dwScore || s.map(()=>0), sg, null);
+  const isPagyeok = pagyeok_mji_chung || pagyeok_touChul_attacked || pagyeok_hap || pagyeok_basic;
+  const pagyeokReasons5 = [];
+  if(pagyeok_basic)              pagyeokReasons5.push('格 오행 극하는 천간 존재');
+  if(pagyeok_mji_chung)          pagyeokReasons5.push('대운지지 충으로 格의 뿌리 손상');
+  if(pagyeok_touChul_attacked)   pagyeokReasons5.push('대운 천간이 충극을 받아 格 약화');
+  if(pagyeok_hap)                pagyeokReasons5.push('대운 천간이 합(合)에 묶여 약화');
+  const pagyeokDesc = pagyeokReasons5.join(' / ');
+
+  // ── 5주법 오행으로 종格·가종格 판별 ──
+  const total5 = score5.reduce((a,b)=>a+b,0);
+  let dwGeokType = 'NAE';
+  let dwGeokFinal = name;
+  let dwGeokYEl = null, dwGeokGEl = null, dwGeokHEl = null;
+
+  if(total5 > 0){
+    const dgEl5   = GEL[dg];
+    const biEl5   = dgEl5;
+    const inEl5   = SAENG_BY[dgEl5];
+    const sikEl5  = SAENG[dgEl5];
+    const jaeEl5  = GEUK[dgEl5];
+    const gwanEl5 = [0,1,2,3,4].find(i=>GEUK[i]===dgEl5);
+    const biRatio  = score5[biEl5]  / total5;
+    const inRatio  = score5[inEl5]  / total5;
+    const helpRatio= biRatio + inRatio;
+
+    // 종格 체크 (5주법 기준)
+    if(helpRatio < 0.20){
+      const opts = [
+        {el:sikEl5, name:'종아격(從兒格)', ratio:score5[sikEl5]/total5},
+        {el:jaeEl5, name:'종재격(從財格)', ratio:score5[jaeEl5]/total5},
+        {el:gwanEl5,name:'종살격(從殺格)', ratio:score5[gwanEl5]/total5},
+      ];
+      opts.sort((a,b)=>b.ratio-a.ratio);
+      if(opts[0].ratio >= 0.40){
+        dwGeokType = 'JONG';
+        dwGeokFinal = opts[0].name;
+        dwGeokYEl = opts[0].el;
+        dwGeokHEl = SAENG_BY[opts[0].el];
+        dwGeokGEl = biEl5;
+      }
+    }
+    // 가종格 체크
+    else if(helpRatio >= 0.10 && helpRatio <= 0.28){
+      const opts2 = [
+        {el:sikEl5, type:'종아', ratio:score5[sikEl5]/total5},
+        {el:jaeEl5, type:'종재', ratio:score5[jaeEl5]/total5},
+        {el:gwanEl5,type:'종살', ratio:score5[gwanEl5]/total5},
+      ];
+      opts2.sort((a,b)=>b.ratio-a.ratio);
+      if(opts2[0].ratio >= 0.38){
+        dwGeokType = 'GAJONG';
+        dwGeokFinal = `가${opts2[0].type}격(假從格)`;
+        dwGeokYEl = opts2[0].el;
+        dwGeokHEl = SAENG_BY[opts2[0].el];
+        dwGeokGEl = biEl5;
+      }
+    }
+    // 가종강·가종약格
+    if(dwGeokType === 'NAE' && helpRatio >= 0.38 && helpRatio <= 0.65){
+      if(biRatio >= inRatio && biRatio >= 0.30){
+        dwGeokType = 'GAJONG';
+        dwGeokFinal = '가종강격(假從强格)';
+        dwGeokYEl = biEl5; dwGeokHEl = inEl5; dwGeokGEl = jaeEl5;
+      } else if(inRatio > biRatio && inRatio >= 0.30){
+        dwGeokType = 'GAJONG';
+        dwGeokFinal = '가종약격(假從弱格)';
+        dwGeokYEl = inEl5; dwGeokHEl = biEl5; dwGeokGEl = jaeEl5;
+      }
+    }
+  }
+
+  // ── 실질 종格 경향 (파격 50% 이하) ──
+  let tendencyGeok5 = null;
+  if(dwGeokType === 'NAE' && dwGeokStrength <= 50 && total5 > 0){
+    const dgEl5 = GEL[dg];
+    const ssScore5 = [
+      {ss:'종아격(從兒格) 경향', el:SAENG[dgEl5],  score:score5[SAENG[dgEl5]]},
+      {ss:'종재격(從財格) 경향', el:GEUK[dgEl5],   score:score5[GEUK[dgEl5]]},
+      {ss:'종살격(從殺格) 경향', el:[0,1,2,3,4].find(i=>GEUK[i]===dgEl5), score:score5[[0,1,2,3,4].find(i=>GEUK[i]===dgEl5)]},
+      {ss:'종약격(從弱格) 경향', el:SAENG_BY[dgEl5], score:score5[SAENG_BY[dgEl5]]},
+      {ss:'종강격(從强格) 경향', el:dgEl5,          score:score5[dgEl5]},
+    ];
+    const top5 = ssScore5.reduce((a,b)=>a.score>b.score?a:b);
+    const topRatio5 = Math.round(top5.score/total5*100);
+    const ENM_S5 = ['木','火','土','金','水'];
+    if(topRatio5 >= 20){
+      tendencyGeok5 = {
+        name: top5.ss,
+        el: top5.el,
+        ratio: topRatio5,
+        desc: `대운格 ${name}이 ${dwGeokStrength}% 수준으로 약화됩니다. 5주법 기준 <strong>${ENM_S5[top5.el]}(${topRatio5}%)</strong>이 가장 강하여 <strong>${top5.ss}</strong>으로 흘러가는 구조입니다.`
+      };
+    }
+  }
+
+  // 용신: 종格이면 종格 용신, 아니면 억부 용신
+  const sg5 = calcShinGangYak(s, score5);
+  const eb5 = calcEokbuYongshin(s, score5, sg5, null);
+  const finalYEl = dwGeokYEl ?? eb5.yongshinEl;
+  const finalHEl = dwGeokHEl ?? eb5.heeshinEl;
+  const finalGEl = dwGeokGEl ?? eb5.gishinEl;
 
   // 원국格과 비교
-  const origGeok = calcGeokgukAll(s, dwScore || s.map(()=>0));
-  const isSameAsOrig = origGeok.name === name;
+  const origGeok = calcGeokgukAll(s, score5);
+  const isSameAsOrig = origGeok.name === dwGeokFinal;
   const isDirectionChange = !isSameAsOrig && dwGeokStrength >= 40;
 
   return {
-    name,
+    name: dwGeokFinal,
     ss,
     bongiGan: dwBongiGan,
     bongiEl: dwBongiEl,
     touChul: dwTouChul,
     geokStrength: dwGeokStrength,
-    isPagyeok: dwPagyeok_chung,
-    pagyeokDesc: dwPagyeok_chung ? `대운지지 ${JI_NM[dwJ]}가 원국 지지와 충` : '',
-    yongshinEl: eb.yongshinEl,
-    heeshinEl:  eb.heeshinEl,
-    gishinEl:   eb.gishinEl,
-    gushinEl:   eb.gushinEl,
+    isPagyeok,
+    pagyeokDesc,
+    tendencyGeok: tendencyGeok5,
+    yongshinEl: finalYEl,
+    heeshinEl:  finalHEl,
+    gishinEl:   finalGEl,
+    gushinEl:   eb5.gushinEl,
     isSameAsOrig,
     isDirectionChange,
     origGeokName: origGeok.name,
     type: 'DW_GEOK',
+    dwGeokType,
   };
 }
 
@@ -4905,6 +5022,23 @@ function renderDwDetail(idx){
         <div style="margin-top:8px;font-size:11px;color:var(--text3);">
           원국格과 같은 방향 — 타고난 格이 이 대운에서도 유지됩니다.
         </div>`}
+
+        <!-- 파격 사유 표시 -->
+        ${dwGeok.isPagyeok && dwGeok.pagyeokDesc ? `
+        <div style="margin-top:8px;padding:6px 10px;background:#fee2e0;border-radius:6px;
+          font-size:11px;color:#c0392b;">
+          ⚠ 파격 사유: ${dwGeok.pagyeokDesc}
+        </div>` : ''}
+
+        <!-- 실질 종格 경향 -->
+        ${dwGeok.tendencyGeok ? `
+        <div style="margin-top:8px;padding:8px 10px;background:#fff3cd;border-radius:8px;
+          border-left:3px solid #b07d1a;font-size:12px;color:var(--text2);line-height:1.6;">
+          <div style="font-size:11px;font-weight:700;color:#b07d1a;margin-bottom:3px;">
+            🔄 실질 종格 경향 — ${dwGeok.tendencyGeok.name}
+          </div>
+          ${dwGeok.tendencyGeok.desc}
+        </div>` : ''}
       </div>
     </div>`;
   }
@@ -6915,158 +7049,104 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   const dg = s[2].g; // 일간
   const dgEl = GEL[dg];
 
-  /* ★ 용신·기신 오행 보정 (格局·用神 연동) ★
-     geok 없으면 window._geok에서 가져옴
-     세운 천간·지지 오행이 용신/희신/기신/구신인지 판별해 점수 보정 */
-  const _geok = geok || window._geok || null;
-  if (_geok) {
-    // 억부용신 우선, 없으면 geok 직접 사용
-    let yEl = _geok.yongshinEl ?? null;
-    let hEl = _geok.heeshinEl  ?? null;
-    let gEl = _geok.gishinEl   ?? null;
-    let qEl = _geok.gushinEl   ?? null;
+  /* ★ 억부용신 기준 세운 보정 ★
+     세운에서는 억부용신이 핵심 — 현실적 성패를 좌우
+     조후·格용신은 원국·대운 탭에서만 언급 */
+  const _geok  = geok || window._geok || null;
+  const _eokbu = window._eokbu || null;
+  const ENM_S2 = ['木','火','土','金','水'];
+  const swGEl  = GEL[swG];
+  const swJEl  = JEL[swJ];
 
-    // 내격이고 용신이 없으면 억부용신 계산
-    if (yEl == null && _geok.type === 'NAE') {
-      try {
-        const sg  = calcShinGangYak(s, window._score || s.map(()=>0));
-        const eb  = calcEokbuYongshin(s, window._score || s.map(()=>0), sg, _geok);
-        yEl = eb.yongshinEl ?? null;
-        hEl = eb.heeshinEl  ?? null;
-        gEl = eb.gishinEl   ?? null;
-      } catch(e) {}
-    }
+  // 억부용신 추출 (최우선)
+  let yEl = _eokbu?.yongshinEl ?? null;
+  let hEl = _eokbu?.heeshinEl  ?? null;
+  let gEl = _eokbu?.gishinEl   ?? null;
+  let qEl = _eokbu?.gushinEl   ?? null;
 
-    const ENM_S2 = ['木','火','土','金','水'];
-    const swGEl  = GEL[swG];
-    const swJEl  = JEL[swJ];
+  // 억부용신 없으면 格용신 fallback
+  if (yEl == null && _geok) {
+    yEl = _geok.yongshinEl ?? null;
+    hEl = _geok.heeshinEl  ?? null;
+    gEl = _geok.gishinEl   ?? null;
+    qEl = _geok.gushinEl   ?? null;
+  }
 
-    // 천간·지지 각각 체크 (같은 오행이면 한 번만 카운트)
+  // ★ 대운 완충/증폭 효과 계산 ★
+  // 대운의 조후·格이 좋으면 세운 마이너스 완화, 나쁘면 증폭
+  const _dwGeok = window._dwGeok || null;
+  const _johu   = window._johu   || null;
+  const dwGEl2  = GEL[dwG];
+  const dwJEl2  = JEL[dwJ];
+
+  // 대운格 방향성 평가
+  let dwGeokGood = false, dwGeokBad = false;
+  if(_dwGeok){
+    const dwYEl = _dwGeok.yongshinEl;
+    const dwGElk = _dwGeok.gishinEl;
+    if(dwYEl!=null && (dwGEl2===dwYEl||dwJEl2===dwYEl)) dwGeokGood = true;
+    if(dwGElk!=null && (dwGEl2===dwGElk||dwJEl2===dwGElk)) dwGeokBad  = true;
+  }
+
+  // 대운 조후 방향성 평가
+  let dwJohuGood = false, dwJohuBad = false;
+  if(_johu){
+    const jyEl = _johu.yongshinEl;
+    const jgEl = _johu.gishinEl ?? null;
+    if(jyEl!=null && (dwGEl2===jyEl||dwJEl2===jyEl)) dwJohuGood = true;
+    if(jgEl!=null && (dwGEl2===jgEl||dwJEl2===jgEl)) dwJohuBad  = true;
+  }
+
+  // 대운 완충률 (-1: 증폭, 0: 중립, +1: 완충)
+  const dwBuffer = (dwGeokGood || dwJohuGood) ? 1 : (dwGeokBad && dwJohuBad) ? -1 : 0;
+  const dwBufferLabel = dwBuffer===1 ? '대운 완충' : dwBuffer===-1 ? '대운 증폭' : '';
+
+  if(yEl !== null){
     const checkedEls = new Set();
     [swGEl, swJEl].forEach((el, idx) => {
       if (checkedEls.has(el)) return;
       checkedEls.add(el);
       const src = idx===0 ? '천간' : '지지';
 
-      if (yEl !== null && el === yEl) {
-        const sc = 2;
+      if (el === yEl) {
+        let sc = 2;
+        // 대운 완충: 나쁜 대운에서도 용신 세운이면 효과 일부 제한
+        // 대운 증폭: 좋은 대운 + 용신 세운 = 시너지
+        if(dwBuffer === 1) sc = 3;
         total += sc; cats.add('CAREER');
-        details.push({ label:`용신(${ENM_S2[yEl]})운`, score:sc,
-          desc:`세운 ${src}이 용신 오행(${ENM_S2[yEl]})과 일치 — 길운이 강화됩니다. 사업·직업·재물 상승 기류.`,
+        details.push({ label:`억부용신(${ENM_S2[yEl]})운${dwBuffer===1?' ★'+dwBufferLabel:''}`, score:sc,
+          desc:`세운 ${src}이 억부용신(${ENM_S2[yEl]})과 일치 — 현실적 성취 가능성이 높아집니다.${dwBuffer===1?' 대운 방향도 좋아 시너지 효과!':''}`,
           color:'#0e7c6a', cats:['CAREER'] });
       } else if (hEl !== null && el === hEl) {
         const sc = 1;
         total += sc; cats.add('CAREER');
         details.push({ label:`희신(${ENM_S2[hEl]})운`, score:sc,
-          desc:`세운 ${src}이 희신 오행(${ENM_S2[hEl]})과 일치 — 전반적으로 순조롭습니다. 귀인이 나타나기 좋은 시기.`,
+          desc:`세운 ${src}이 희신 오행(${ENM_S2[hEl]})과 일치 — 순조로운 흐름. 귀인이 나타나기 좋은 시기.`,
           color:'#1a5fa8', cats:['CAREER'] });
       } else if (gEl !== null && el === gEl) {
-        const sc = -2;
+        // ★ 대운 완충: 대운이 좋으면 기신 세운 완화 ★
+        let sc = -2;
+        let bufDesc = '';
+        if(dwBuffer === 1){
+          sc = -1; // 마이너스 완화
+          bufDesc = ` 단, 대운 방향이 좋아 타격이 완화됩니다.`;
+        } else if(dwBuffer === -1){
+          sc = -3; // 마이너스 증폭
+          bufDesc = ` ⚠ 대운 방향도 불리해 크리티컬한 타격!`;
+        }
         total += sc; cats.add('CAREER'); cats.add('MONEY');
-        details.push({ label:`기신(${ENM_S2[gEl]})운`, score:sc,
-          desc:`세운 ${src}이 기신 오행(${ENM_S2[gEl]})과 일치 — 주의가 필요한 시기. 무리한 확장보다 내실을 다지세요.`,
+        details.push({ label:`기신(${ENM_S2[gEl]})운${dwBuffer===-1?' 🔴크리티컬':''}`, score:sc,
+          desc:`세운 ${src}이 기신 오행(${ENM_S2[gEl]})과 일치 — 현실적으로 주의가 필요한 시기.${bufDesc}`,
           color:'#c0392b', cats:['CAREER','MONEY'] });
       } else if (qEl !== null && el === qEl) {
-        const sc = -1;
+        let sc = -1;
+        if(dwBuffer === -1) sc = -2;
         total += sc; cats.add('MONEY');
         details.push({ label:`구신(${ENM_S2[qEl]})운`, score:sc,
-          desc:`세운 ${src}이 구신 오행(${ENM_S2[qEl]})과 일치 — 소소한 방해가 있을 수 있습니다. 신중하게 행동하세요.`,
+          desc:`세운 ${src}이 구신 오행(${ENM_S2[qEl]})과 일치 — 소소한 방해.${dwBuffer===-1?' 대운도 불리해 주의 필요.':''}`,
           color:'#b07d1a', cats:['MONEY'] });
       }
     });
-  }
-
-  /* ★★ 3용신 일치도 분석 — 조후·억부·격용신 정렬도 ★★
-     - 조후용신: 정신적 평안·만족감 (환경 적합성)
-     - 억부용신: 현실적 성패 (일간 강약 균형)
-     - 격용신:   추구하는 목표의 성패 (격국 방향성)
-     세운 오행이 각 용신과 얼마나 일치하는지 판단 */
-  const _johu  = window._johu  || null;
-  const _eokbu = window._eokbu || null;
-  const swGEl2 = GEL[swG];
-  const swJEl2 = JEL[swJ];
-
-  if (_johu || _eokbu || (_geok && _geok.yongshinEl != null)) {
-    const ENM_S3 = ['木','火','土','金','水'];
-
-    // 각 용신 오행 추출
-    const johuYEl  = _johu  ? _johu.yongshinEl  : null;
-    const eokbuYEl = _eokbu ? _eokbu.yongshinEl : null;
-    const geokYEl  = (_geok && _geok.yongshinEl != null) ? _geok.yongshinEl : null;
-
-    // 세운 오행이 각 용신과 일치하는지 체크 (천간 또는 지지 중 하나라도)
-    function matchesYEl(yEl) {
-      if (yEl == null) return false;
-      return swGEl2 === yEl || swJEl2 === yEl;
-    }
-
-    const johuMatch  = matchesYEl(johuYEl);
-    const eokbuMatch = matchesYEl(eokbuYEl);
-    const geokMatch  = matchesYEl(geokYEl);
-
-    // 유효한 용신 수 (null이 아닌 것만)
-    const validCount = [johuYEl, eokbuYEl, geokYEl].filter(v => v != null).length;
-    const matchCount = [johuMatch, eokbuMatch, geokMatch].filter(Boolean).length;
-
-    // 불일치 감지: 세운 오행이 어떤 용신의 기신과 겹치는지
-    const johuGEl  = _johu  ? _johu.gishinEl  : null;
-    const eokbuGEl = _eokbu ? _eokbu.gishinEl : null;
-    const geokGEl  = (_geok && _geok.gishinEl != null) ? _geok.gishinEl : null;
-
-    const johuConflict  = johuGEl  != null && (swGEl2 === johuGEl  || swJEl2 === johuGEl);
-    const eokbuConflict = eokbuGEl != null && (swGEl2 === eokbuGEl || swJEl2 === eokbuGEl);
-    const geokConflict  = geokGEl  != null && (swGEl2 === geokGEl  || swJEl2 === geokGEl);
-    const conflictCount = [johuConflict, eokbuConflict, geokConflict].filter(Boolean).length;
-
-    // 유효한 용신이 2개 이상일 때만 정렬도 분석
-    // ★ 格 강도 반영: 파격이면 格용신 일치도 가중치 축소 ★
-    const geokStr = (_geok && _geok.geokStrength != null) ? _geok.geokStrength : 100;
-    const geokMatchWeight = geokStr / 100; // 0.1 ~ 1.0
-
-    if (validCount >= 2 && (matchCount >= 2 || conflictCount >= 2)) {
-      const labels = [];
-      if (johuMatch)  labels.push('조후(心)');
-      if (eokbuMatch) labels.push('억부(現)');
-      if (geokMatch)  labels.push(`격국(目)${geokStr<70?` ${geokStr}%`:''}` );
-      const conflictLabels = [];
-      if (johuConflict)  conflictLabels.push('조후(心)');
-      if (eokbuConflict) conflictLabels.push('억부(現)');
-      if (geokConflict)  conflictLabels.push('격국(目)');
-
-      if (matchCount >= 3) {
-        // 格 포함 3일치 → 格 강도에 따라 점수 조정
-        const sc = geokMatch ? Math.round(2 * (0.5 + geokMatchWeight*0.5)) : 2;
-        total += sc; cats.add('CAREER');
-        details.push({ label:'3용신 정렬 ★최상', score:sc,
-          desc:`조후(정신평안)·억부(현실성패)·격국(목표성패) 세 용신이 모두 이 세운 오행과 일치합니다. 몸·마음·목표가 완벽하게 정렬된 최상의 운기입니다. 큰 결정과 도전에 최적의 시기.${geokStr<70?` (格 강도 ${geokStr}%로 格용신 기여 일부 제한)`:'' }`,
-          color:'#0e7c6a', cats:['CAREER'] });
-      } else if (matchCount >= 2) {
-        // 格 포함 2일치 → 格 강도 반영
-        const baseScore = 1;
-        const sc = (geokMatch && geokStr < 50) ? 0 : baseScore; // 格이 50% 미만이면 格 일치도 무효
-        if(sc > 0) {
-          total += sc; cats.add('CAREER');
-          const missingLabel = !johuMatch ? '조후(心)' : !eokbuMatch ? '억부(現)' : '격국(目)';
-          const missingDesc = !johuMatch
-            ? '정신적 평안은 다소 부족할 수 있으나 현실과 목표는 잘 풀립니다'
-            : !eokbuMatch
-            ? '현실적 결과는 다소 느릴 수 있으나 마음은 편안하고 방향은 맞습니다'
-            : '목표 달성 속도는 느릴 수 있으나 마음 편안하고 현실적으로는 안정됩니다';
-          details.push({ label:`2용신 정렬 (${labels.join('·')})`, score:sc,
-            desc:`${labels.join('·')}이 세운 오행과 일치합니다. ${missingDesc}. 전반적으로 순조로운 운기.`,
-            color:'#1a5fa8', cats:['CAREER'] });
-        }
-      }
-
-      if (conflictCount >= 2 && matchCount === 0) {
-        // 2개 이상 기신 충돌 → 심리적 불안 경고
-        const sc = -1;
-        total += sc; cats.add('HEALTH');
-        details.push({ label:`용신 불일치 (${conflictLabels.join('·')} 기신)`, score:sc,
-          desc:`${conflictLabels.join('·')} 방향이 어긋납니다. 마음이 편치 않거나 노력과 결과가 맞지 않는 내재된 불안감이 생길 수 있는 시기. 큰 결정보다 내실을 다지세요.`,
-          color:'#b07d1a', cats:['HEALTH'] });
-      }
-    }
   }
   /* 십성 계산 */
   function getSS_(dg,tg){
