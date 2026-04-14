@@ -4072,13 +4072,12 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
   const isJeonChung = chungCount >= 2;
 
   // ★ 비겁 과다 格 보정 ★
-  // 월겁격·건록격·양인격처럼 비겁이 格을 이루는 경우
-  // 비겁(일간 오행)이 더 강해지면 오히려 혼란·분산 → 비겁을 기신으로 처리
-  const BIJIP_GEOK = ['월겁격(月劫格)','건록격(建祿格)','양인격(羊刃格)'];
-  const isBijipGeok = geokInfo && BIJIP_GEOK.some(g=>geokInfo.name&&geokInfo.name.includes(g.replace('(','').replace(')','').slice(0,3)));
-  // 또는 비겁 오행 비율이 30% 이상이면 비겁 과다로 판단
+  const BIJIP_GEOK = ['월겁격','건록격','양인격'];
+  // geokInfo.name에서 직접 체크 (가장 확실한 방법)
+  const isBijipGeok = !!(geokInfo?.name && BIJIP_GEOK.some(g => geokInfo.name.includes(g)));
+  // 또는 비겁 오행 비율이 25% 이상 (기준 낮춤 — 합화로 줄어든 경우 대비)
   const bijipRatio = p(score[biEl]);
-  const isBijipOver = bijipRatio >= 30;
+  const isBijipOver = bijipRatio >= 25;
 
   if(isJunghwa){
     const candidates=[sikEl,jaeEl,gwanEl,biEl,inEl];
@@ -4106,6 +4105,13 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
                  {el:sikEl, score:score[sikEl] +(sikEl===mJiEl?5:0)}].sort((a,b)=>b.score-a.score);
     yEl=cands[0].el;hEl=cands[1].el;gEl=biEl;guEl=inEl;hnEl=cands[2].el;
     desc=`일간 ${GH[dg]}(${ENM[dEl]})이 <strong>${strength}</strong>합니다 (도움오행 ${Math.round(helpRatio*100)}%). ${deulLyeong?'월령 득령으로 뿌리가 튼튼하여':'월령 실령이나 타주 비겁·인성이 과다하여'} 억부가 필요합니다. 일간을 억제·설기하는 <strong>${ENM[yEl]}</strong>이 용신, 비겁(${ENM[biEl]})은 기신, 인성(${ENM[inEl]})은 구신입니다.`;
+
+    // ★ 비겁 과다 格 보정 (isGang에서도 적용) ★
+    // 월겁격·건록격·양인격이거나 비겁 30% 이상이면 비겁이 기신인 건 동일
+    // 신강 사주에서 비겁格이면 비겁을 더 강조해서 경고
+    if(isBijipGeok||isBijipOver){
+      desc += ` 비겁(${ENM[biEl]}) 오행이 ${isBijipGeok?'格을 이루거나 ':'' }${bijipRatio}%로 과다하여 비겁이 강해지는 운에서는 에너지 분산과 내적 혼란에 주의하세요.`;
+    }
   } else {
     if(deulLyeong||score[inEl]>=score[biEl]){yEl=inEl;hEl=biEl;}
     else{yEl=biEl;hEl=inEl;}
