@@ -7768,6 +7768,63 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
     cats.add('RELATION');
   }
 
+  /* ⑩-1 ★ 좋은 운에서 위험한 패턴 경고 ★
+     신강 사주에서 관살(억부용신)+재성이 동시에 활성화될 때
+     → 자신감 과잉 + 겁재 충격 → 충동적 재물 결정 위험
+     실전 패턴: "운이 좋다는 느낌" → 판단력 과신 → 무리한 투자·도박성 결정
+  */
+  {
+    const _eokbuW = window._eokbu || null;
+    const _geokW  = window._geok  || null;
+    const yElW = _eokbuW?.yongshinEl ?? _geokW?.yongshinEl ?? null;
+    const gElW = _eokbuW?.gishinEl  ?? _geokW?.gishinEl  ?? null;
+    const isGangW = gElW !== null && GEL[dg] === gElW; // 신강: 기신=비겁
+
+    if(isGangW && yElW !== null) {
+      const gwanElW = [0,1,2,3,4].find(i=>GEUK[i]===dgEl);
+      const jaeElW  = GEUK[dgEl];
+      const swGEl_  = GEL[swG];
+      const swJEl_  = JEL[swJ];
+      const dwGEl_  = GEL[dwG];
+      const dwJEl_  = JEL[dwJ];
+
+      // 조건1: 세운에 관살(억부용신) 활성화 — "잘 되는 느낌" 유발
+      const hasGwanSal = swGEl_===gwanElW || swJEl_===gwanElW;
+      // 조건2: 세운·대운에 재성 활성화 — 재물욕 자극
+      const hasJae = swGEl_===jaeElW || swJEl_===jaeElW || dwGEl_===jaeElW || dwJEl_===jaeElW;
+      // 조건3: 겁재가 충격받는 구조 — 판단력 흐려짐
+      // 관살이 원국 겁재(비겁 천간)를 극하는 경우
+      const bijipGans = s.map(p=>p.g).filter(g=>GEL[g]===dgEl && g!==dg);
+      const isGwanHitsBijip = bijipGans.length > 0 &&
+        (swGEl_===gwanElW || dwGEl_===gwanElW); // 관살 천간이 겁재 극
+
+      // 조건4: 식상(상관)이 강해져 자신감·충동 과잉
+      const sikElW  = SAENG[dgEl];
+      const hasSikActive = dwJEl_===sikElW || swJEl_===sikElW; // 대운/세운 지지에 식상
+
+      // 패턴 발동: 관살+재성+겁재충격 OR 관살+재성+식상과잉
+      const isBadPatternActive =
+        hasGwanSal && hasJae && (isGwanHitsBijip || hasSikActive);
+
+      if(isBadPatternActive) {
+        const reasonParts = [];
+        if(isGwanHitsBijip) reasonParts.push('관살이 겁재를 극하여 판단력이 흐려질 수 있습니다');
+        if(hasSikActive) reasonParts.push('식상 지지 활성화로 자신감·충동이 과잉될 수 있습니다');
+        if(hasJae) reasonParts.push('재성 기운이 재물욕을 자극합니다');
+
+        details.push({ label:'⚠ 좋은 운의 함정', score:0,
+          desc:`운이 좋게 느껴지는 시기일수록 큰 실수가 일어날 수 있습니다. `
+             + `관살(억부용신)이 작동하여 에너지·자신감이 높아지고(${ENM[gwanElW]} 활성화), `
+             + `재성 기운이 재물욕을 자극하는 구조입니다. `
+             + `${reasonParts.join(', ')}. `
+             + `"이번엔 된다"는 확신이 강할수록 투자·도박성 결정에 신중해야 합니다. `
+             + `특히 주식·부동산·사업 확장 등 큰 재물 결정은 반드시 냉정하게 재검토하세요.`,
+          color:'#8e44ad', cats:['MONEY'] });
+        cats.add('MONEY');
+      }
+    }
+  }
+
   /* ⑪ 천간 병존 분석 — 지지 통근 종합 */
   const byeonResults = calcGanByeon(s, dwG, dwJ, swG, swJ);
   byeonResults.forEach(b=>{
