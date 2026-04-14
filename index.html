@@ -1539,6 +1539,43 @@ const SAMHAP = [
   { trio:[5,9,1],  hwEl:3, wang:9  },  // 巳酉丑 → 金, 왕지=酉
   { trio:[11,3,7], hwEl:0, wang:3  },  // 亥卯未 → 木, 왕지=卯
 ];
+
+/* ★ 삼합 강도 계산 함수 ★
+   선생님 이론:
+   - 왕지(午卯子酉)가 월지에 있을 때 가장 강함 → 변질률 95%
+   - 왕지가 일지 → 80%, 시지 → 70%, 연지 → 60%
+   - 3자 연속 붙어있으면 +5% 보너스
+   - 2자만 있는 반합: 왕지 포함 시 25%, 미포함 시 15%
+     → 형충파해 받을 때 or 천간에서 합화 글자 올 때 발현
+   jiList: [연지, 월지, 일지, 시지] 인덱스 배열 (0~11)
+   반환: [{hwEl, rate, type('full'|'half'), wangPos, desc}, ...] */
+function calcSamhapStrengthMap(jiList) {
+  // 왕지 위치별 格局 판정용 변질률 (엄격 적용)
+  const WANG_POS_RATE = {1: 0.95, 2: 0.80, 3: 0.70, 0: 0.60};
+  const result = [];
+  for (const {trio, hwEl, wang} of SAMHAP) {
+    const positions = trio.map(j => jiList.indexOf(j));
+    const presentPos = positions.filter(p => p >= 0);
+    if (presentPos.length === 3) {
+      // 완전 삼합
+      const wangPos = jiList.indexOf(wang);
+      let rate = WANG_POS_RATE[wangPos] ?? 0.60;
+      // 연속성 보너스
+      const sorted = [...presentPos].sort((a,b)=>a-b);
+      let consec = 0;
+      for (let i=0; i<sorted.length-1; i++) if(sorted[i+1]-sorted[i]===1) consec++;
+      rate = Math.min(0.95, rate + (consec>=2?0.05:consec===1?0.03:0));
+      result.push({ hwEl, rate, type:'full', wangPos, positions:sorted });
+    } else if (presentPos.length === 2) {
+      // 반합 — 기본적으로 낮은 변질률, 천간/세운에서 합화글자 올 때 발현
+      const hasWang = jiList.indexOf(wang) >= 0;
+      const wangPos = hasWang ? jiList.indexOf(wang) : -1;
+      const rate = hasWang ? 0.20 : 0.10;
+      result.push({ hwEl, rate, type:'half', wangPos, positions:presentPos });
+    }
+  }
+  return result;
+}
 // 반합 쌍: [지지A, 지지B, 합화오행, 왕지포함여부]
 // 왕지(子午卯酉) 포함 반합은 더 강함
 const WANG_JI = new Set([0,3,6,9]); // 子卯午酉
@@ -2006,30 +2043,23 @@ function calcJonggeyok(s,score){
   const gwanEl=[0,1,2,3,4].find(i=>GEUK[i]===dEl);
   const sikEl=SAENG[dEl], jaeEl=GEUK[dEl];
 
-  // ★ 삼합에 편입된 지지 파악 — 편입된 지지는 인성/비겁 역할 면제
-  const SAMHAP_SETS=[[0,4,8],[1,5,9],[2,6,10],[3,7,11]];
-  const SAMHAP_EL=[4,3,1,0];
+  // ★ 삼합 강도 기반 보정 — calcSamhapStrengthMap 활용
   const allJi=s.map(p=>p.j);
+  const samhapMaps = calcSamhapStrengthMap(allJi); // [{hwEl,rate,type,wangPos,positions}]
   const samhapAbsorbedJi=new Set();
-  SAMHAP_SETS.forEach((set,si)=>{
-    if(set.every(j=>allJi.includes(j))){
-      const samhapEl=SAMHAP_EL[si];
-      set.forEach(j=>{
-        const jEl=JEL[j];
-        if((jEl===inEl||jEl===biEl)&&jEl!==samhapEl) samhapAbsorbedJi.add(j);
-      });
-    }
-  });
-
-  // 삼합 편입 제외 후 실질 도움오행 비율
   const adjScore=[...score];
-  samhapAbsorbedJi.forEach(j=>{
-    const ji_idx=allJi.indexOf(j);
-    const jiW=[17.5,32.5,22.5,27.5][ji_idx];
-    const shift=jiW*0.8; // 삼합국 완성 시 80% 변질 (완전 삼합은 거의 완전 변환)
-    const samhapEl=SAMHAP_EL[SAMHAP_SETS.findIndex(set=>set.includes(j))];
-    adjScore[JEL[j]]-=shift;
-    adjScore[samhapEl]+=shift;
+  const JI_WEIGHTS=[17.5,32.5,22.5,27.5];
+  samhapMaps.forEach(({hwEl:samhapEl,rate,type,positions})=>{
+    if(type!=='full') return; // 완전 삼합만 처리
+    positions.forEach(pos=>{
+      const j=allJi[pos];
+      const jEl=JEL[j];
+      if((jEl===inEl||jEl===biEl)&&jEl!==samhapEl){
+        samhapAbsorbedJi.add(j);
+        const shift=JI_WEIGHTS[pos]*rate;
+        adjScore[jEl]-=shift; adjScore[samhapEl]+=shift;
+      }
+    });
   });
   const adjTotal=adjScore.reduce((a,b)=>a+b,0);
   const helpRatio=(adjScore[biEl]+adjScore[inEl])/adjTotal;
@@ -2042,13 +2072,36 @@ function calcJonggeyok(s,score){
   const effectiveRootCount_j = effectiveRoots_j.length;
 
   // ★ 종格 판정 기준 (선생님 이론 반영)
-  // 조건A: 엄격 — helpRatio<=0.20 + 지지 인성/비겁 없음 (기존)
-  // 조건B: 완화 — 삼합으로 실질 통근 0개 + helpRatio<=0.25 (삼합국 완성 사주)
-  //   → 삼합국이 완성되어 뿌리가 완전히 소멸된 경우, 남은 인성/비겁 지지가
-  //     미약해도(未土 등) 종格으로 봄
-  const condA = helpRatio <= 0.20 && !jiHasHelp;
+  // 핵심: 삼합화 오행이 천간에 투출되고 + 그 오행을 극하는 천간이 없으면 → 종格
+  //       극하는 천간이 있으면 → 종格 불성립 → calcGaJong에서 가종格 처리
+
+  // 삼합 편입 제외 후 지지 인성/비겁 잔존 여부
+  const jiHasHelp = s.some(p => !samhapAbsorbedJi.has(p.j) && (JEL[p.j]===biEl||JEL[p.j]===inEl));
+
+  // 삼합화 오행 목록 파악
+  const ganList_j = s.map(p=>p.g);
+  let samhapHwElSet = new Set();
+  samhapMaps.forEach(({hwEl,type})=>{ if(type==='full') samhapHwElSet.add(hwEl); });
+
+  // 삼합화 오행 천간 투출 여부
+  const hasSamhapGanSupport = samhapHwElSet.size > 0 &&
+    [...samhapHwElSet].some(hwEl => ganList_j.some((g,i)=>i!==2&&GEL[g]===hwEl));
+
+  // 삼합화 오행을 극하는 천간(일간 제외) 존재 여부
+  const hasSamhapGanHarm = samhapHwElSet.size > 0 &&
+    [...samhapHwElSet].some(hwEl => {
+      const harmEl = [0,1,2,3,4].find(x=>GEUK[x]===hwEl);
+      return ganList_j.some((g,i)=>i!==2&&GEL[g]===harmEl);
+    });
+
+  // 조건A: 엄격 종格 — helpRatio<=0.20 + 지지 인성/비겁 없음
+  const condA = helpRatio <= 0.20 && !jiHasHelp && !hasSamhapGanHarm;
+  // 조건B: 삼합국 완성 종格 — 실질통근0 + helpRatio<=0.27 + 천간 비겁/인성 없음
+  //         + 삼합화 천간 투출 있음 + 삼합화 극 천간 없음
   const condB = effectiveRootCount_j === 0 && helpRatio <= 0.27 &&
-                !s.some((p,i)=>i!==2&&(GEL[p.g]===biEl||GEL[p.g]===inEl)); // 일간 제외, 천간에도 비겁/인성 없어야
+                !s.some((p,i)=>i!==2&&(GEL[p.g]===biEl||GEL[p.g]===inEl)) &&
+                hasSamhapGanSupport && !hasSamhapGanHarm;
+
   if(!condA && !condB) return null;
 
   const p=v=>Math.round(v/adjTotal*100);
@@ -2082,50 +2135,39 @@ function calcGaJong(s, score) {
   const roots = s.filter((p,i) => jizhiEls(p.j).includes(dEl));
   const rootCount = roots.length;
 
-  // ★ 삼합 보정 — 삼합이 완성된 경우 편입 지지의 오행을 삼합 오행으로 변질
-  // 예) 寅午戌 삼합 火 완성 → 戌(土) 지지가 火기운으로 편입
-  //     실질적으로 인성(土) 비율 감소, 관살(火) 비율 증가
-  const SAMHAP_SETS = [[0,4,8],[1,5,9],[2,6,10],[3,7,11]]; // 申子辰水, 巳酉丑金, 寅午戌火, 卯未亥木
-  const SAMHAP_EL   = [4,3,1,0]; // 水, 金, 火, 木
+  // ★ 삼합 강도 기반 보정 — calcSamhapStrengthMap 활용
   const allJi = s.map(p=>p.j);
-  let adjScore = [...score]; // 보정된 점수
-
-  SAMHAP_SETS.forEach((set, si) => {
-    if (set.every(j => allJi.includes(j))) {
-      const samhapEl = SAMHAP_EL[si];
-      // 삼합 완성 시: 삼합에 편입된 지지 중 중간지(장생·묘)의 오행이 변질
-      // 특히 인성·비겁 오행인 지지가 삼합 오행으로 흡수되는 비율
-      set.forEach(j => {
-        const jEl = JEL[j];
-        // 해당 지지 오행이 인성(inEl) 또는 비겁(biEl)이고 삼합 오행과 다르면 변질
-        if ((jEl === inEl || jEl === biEl) && jEl !== samhapEl) {
-          // 지지 가중치 기반으로 변질량 계산 (해당 지지의 점수 약 40% 변질)
-          const ji_idx = allJi.indexOf(j);
-          const jiW = [17.5, 32.5, 22.5, 27.5][ji_idx];
-          const shift = jiW * 0.8; // 삼합국 완성 시 80% 변질
-          adjScore[jEl] -= shift;
-          adjScore[samhapEl] += shift;
-        }
-      });
-    }
+  const samhapMaps_g = calcSamhapStrengthMap(allJi);
+  let adjScore = [...score];
+  const JI_WEIGHTS_G = [17.5,32.5,22.5,27.5];
+  samhapMaps_g.forEach(({hwEl:samhapEl,rate,type,positions})=>{
+    if(type!=='full') return;
+    positions.forEach(pos=>{
+      const j=allJi[pos], jEl=JEL[j];
+      if((jEl===inEl||jEl===biEl)&&jEl!==samhapEl){
+        const shift=JI_WEIGHTS_G[pos]*rate;
+        adjScore[jEl]-=shift; adjScore[samhapEl]+=shift;
+      }
+    });
   });
 
   const adjTotal = adjScore.reduce((a,b)=>a+b,0);
-  const helpRatio     = (score[biEl] + score[inEl]) / total;       // 원본 (통근·신강약용)
-  const adjHelpRatio  = (adjScore[biEl] + adjScore[inEl]) / adjTotal; // 보정 (종格 판정용)
+  const helpRatio     = (score[biEl] + score[inEl]) / total;
+  const adjHelpRatio  = (adjScore[biEl] + adjScore[inEl]) / adjTotal;
 
   const opts = [[sikEl,'종아'],[jaeEl,'종재'],[gwanEl,'종살']];
   opts.sort((a,b) => adjScore[b[0]] - adjScore[a[0]]);
   const [topEl, topType] = opts[0];
   const topRatio = adjScore[topEl] / adjTotal;
 
-  // ★ 삼합에 편입된 통근 지지 → 실질 뿌리 소멸 처리
+  // ★ 삼합 편입된 통근 지지 소멸 처리
   const samhapAbsorbed = new Set();
-  SAMHAP_SETS.forEach((set,si) => {
-    if(set.every(j=>allJi.includes(j))){
-      const samhapEl2 = SAMHAP_EL[si];
-      set.forEach(j=>{ if((JEL[j]===inEl||JEL[j]===biEl)&&JEL[j]!==samhapEl2) samhapAbsorbed.add(j); });
-    }
+  samhapMaps_g.forEach(({hwEl:sEl2,type:t2,positions:pos2})=>{
+    if(t2!=='full') return;
+    pos2.forEach(pos=>{
+      const j=allJi[pos];
+      if((JEL[j]===inEl||JEL[j]===biEl)&&JEL[j]!==sEl2) samhapAbsorbed.add(j);
+    });
   });
   const effectiveRoots = roots.filter(p => !samhapAbsorbed.has(p.j));
   const effectiveRootCount = effectiveRoots.length;
@@ -2135,9 +2177,61 @@ function calcGaJong(s, score) {
   const hasRealObstacle = obstacleGan.length > 0 || effectiveRootCount >= 1;
   const hasSikOnly = obstacleGan.length === 0 && effectiveRootCount === 0;
   const sikGans = s.filter(p=>GEL[p.g]===sikEl).map(p=>GH[p.g]).join('·');
+
+  // ★ 삼합화 오행 천간 투출 & 극 오행 체크
+  const ganList_g = s.map(p=>p.g);
+  let samhapHwElSet_g = new Set();
+  samhapMaps_g.forEach(({hwEl,type})=>{ if(type==='full') samhapHwElSet_g.add(hwEl); });
+  // 삼합화 오행을 극하는 천간(일간 제외) 존재 여부
+  const hasSamhapGanHarm_g = samhapHwElSet_g.size > 0 &&
+    [...samhapHwElSet_g].some(hwEl => {
+      const harmEl = [0,1,2,3,4].find(x=>GEUK[x]===hwEl);
+      return ganList_g.some((g,i)=>i!==2&&GEL[g]===harmEl);
+    });
+  // 삼합화 오행 천간 투출 여부
+  const hasSamhapGanSupport_g = samhapHwElSet_g.size > 0 &&
+    [...samhapHwElSet_g].some(hwEl => ganList_g.some((g,i)=>i!==2&&GEL[g]===hwEl));
+  // 극 오행 천간 이름
+  const harmGanNames = hasSamhapGanHarm_g
+    ? s.filter((p,i)=>{ const harmEl=[0,1,2,3,4].find(x=>GEUK[x]===[...samhapHwElSet_g][0]);
+        return i!==2&&GEL[p.g]===harmEl; }).map(p=>GH[p.g]).join('·')
+    : '';
+
   const obsNames = obstacleGan.length > 0
     ? obstacleGan.map(p => GH[p.g]).join('·')
     : effectiveRoots.map(p => JH[p.j] + '통근').join('·') || (sikGans ? sikGans+'(식상)' : '');
+
+  // ★ 케이스1: 삼합화 천간 투출 + 극 천간 있음 → 가종格 (핵심 케이스!)
+  // 예) 寅午戌 삼합 + 丙火 투출 + 癸水 천간 → 가종살格
+  if (hasSikOnly && hasSamhapGanSupport_g && hasSamhapGanHarm_g) {
+    const harmName = harmGanNames || '극오행천간';
+    return {
+      type: 'GAJONG', name: `가${topType}격(假從格)`, domEl: topEl,
+      obstacleEl: biEl, obstacleGan: harmName+'(천간방해)', rootCount: 0,
+      helpRatio: adjHelpRatio, topRatio,
+      yongshinEl: topEl, heeshinEl: SAENG_BY[topEl], gishinEl: biEl, gushinEl: inEl,
+      desc: `지지에 삼합(三合)이 완성되어 ${ENM[topEl]} 기운이 ${Math.round(topRatio*100)}%로 사주를 지배합니다. ` +
+            `${ENM[topEl]} 오행이 천간에도 투출되어 종格에 가깝지만, ` +
+            `천간의 ${harmName}이(가) ${ENM[topEl]} 기운을 극하여 완전한 종格을 방해합니다. ` +
+            `이를 <strong>가${topType}격(假從格)</strong>이라 합니다. ` +
+            `${ENM[topEl]}·${ENM[SAENG_BY[topEl]]} 운에 강하게 반응하고, ${harmName} 같은 극(克) 오행 운에는 내면의 저항과 혼란이 생깁니다.`
+    };
+  }
+
+  // 케이스2: 삼합만 있고 방해 없음 (식상뿐) → 종格에 매우 가까운 가종格
+  if (hasSikOnly && adjHelpRatio >= 0.10 && adjHelpRatio <= 0.38 && topRatio >= 0.30) {
+    return {
+      type: 'GAJONG', name: `가${topType}격(假從格)`, domEl: topEl,
+      obstacleEl: biEl, obstacleGan: sikGans+'(식상)', rootCount: 0,
+      helpRatio: adjHelpRatio, topRatio,
+      yongshinEl: topEl, heeshinEl: SAENG_BY[topEl], gishinEl: biEl, gushinEl: inEl,
+      desc: `일간 ${GH[dg]}의 지지 통근이 삼합(三合)으로 실질적으로 소멸된 상태입니다. ` +
+            `비겁·인성의 직접 방해 없이 식상(${sikGans})만이 남아 완전한 종格을 방해합니다. ` +
+            `${ENM[topEl]} 기운이 ${Math.round(topRatio*100)}%로 사주를 지배하며, ` +
+            `이를 <strong>가${topType}격(假從格)</strong>이라 합니다. ` +
+            `종格에 매우 가까운 구조로, ${ENM[topEl]}·${ENM[SAENG_BY[topEl]]} 운에 강하게 반응합니다.`
+    };
+  }
 
   // 가종格: 실질 통근 1이하 + 보정helpRatio 10~30% + 지배오행 35%+
   if (effectiveRootCount <= 1 && adjHelpRatio >= 0.10 && adjHelpRatio <= 0.30 && topRatio >= 0.35 && hasRealObstacle) {
@@ -2153,21 +2247,6 @@ function calcGaJong(s, score) {
               : `도움오행(비겁·인성) 비율 ${Math.round(adjHelpRatio*100)}%로 낮아 종格에 근접합니다. `) +
             `그러나 ${obsNames}이(가) 완전한 종(從)을 방해합니다. ` +
             `이를 <strong>가${topType}격(假從格)</strong>이라 합니다.`
-    };
-  }
-
-  // ★ 식상만 방해 + 비겁/인성 전무 → 종格에 매우 가까운 가종格
-  if (hasSikOnly && adjHelpRatio >= 0.10 && adjHelpRatio <= 0.38 && topRatio >= 0.30) {
-    return {
-      type: 'GAJONG', name: `가${topType}격(假從格)`, domEl: topEl,
-      obstacleEl: biEl, obstacleGan: sikGans+'(식상)', rootCount: 0,
-      helpRatio: adjHelpRatio, topRatio,
-      yongshinEl: topEl, heeshinEl: SAENG_BY[topEl], gishinEl: biEl, gushinEl: inEl,
-      desc: `일간 ${GH[dg]}의 지지 통근이 삼합(三合)으로 실질적으로 소멸된 상태입니다. ` +
-            `비겁·인성의 직접 방해 없이 식상(${sikGans})만이 남아 완전한 종格을 방해합니다. ` +
-            `${ENM[topEl]} 기운이 ${Math.round(topRatio*100)}%로 사주를 지배하며, ` +
-            `이를 <strong>가${topType}격(假從格)</strong>이라 합니다. ` +
-            `종格에 매우 가까운 구조로, ${ENM[topEl]}·${ENM[SAENG_BY[topEl]]} 운에 강하게 반응합니다.`
     };
   }
 
