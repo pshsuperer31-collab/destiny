@@ -323,7 +323,53 @@ header{text-align:center;margin-bottom:2.5rem;padding-top:0.5rem;}
   </div>
   <div id="p-ziwei" class="panel">
     <div class="sec-title">자미두수 명반 (紫微斗數)</div>
+
+    <!-- 삼층 명반 선택 탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+      <button id="zw-tab-bon" onclick="switchZwLayer('bon',this)"
+        style="padding:7px 16px;border-radius:20px;border:2px solid #0f2556;
+        background:#0f2556;color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+        font-family:'Noto Serif KR',serif;letter-spacing:0.05em;">
+        🏛 본명반
+      </button>
+      <button id="zw-tab-dahan" onclick="switchZwLayer('dahan',this)"
+        style="padding:7px 16px;border-radius:20px;border:2px solid #0f2556;
+        background:#fff;color:#0f2556;font-size:12px;font-weight:700;cursor:pointer;
+        font-family:'Noto Serif KR',serif;letter-spacing:0.05em;">
+        🔄 대한명반
+      </button>
+      <button id="zw-tab-seun" onclick="switchZwLayer('seun',this)"
+        style="padding:7px 16px;border-radius:20px;border:2px solid #0f2556;
+        background:#fff;color:#0f2556;font-size:12px;font-weight:700;cursor:pointer;
+        font-family:'Noto Serif KR',serif;letter-spacing:0.05em;">
+        ⚡ 세운명반
+      </button>
+      <div id="zw-layer-info" style="display:flex;align-items:center;font-size:11px;
+        color:var(--text3);padding:0 8px;"></div>
+    </div>
+
+    <!-- 삼층 사화 표시 -->
+    <div id="zw-sihua-display" style="margin-bottom:12px;"></div>
+
+    <!-- 명반 그리드 -->
     <div class="zw-wrap"><div class="zw-grid" id="ziwei"></div></div>
+
+    <!-- 세운 선택 (세운명반 탭에서만 표시) -->
+    <div id="zw-seun-selector" style="display:none;margin-top:12px;">
+      <div class="sec-title">세운 선택</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--text2);">연도:</label>
+        <input type="number" id="zw-seun-year" value="2025" min="1900" max="2100"
+          style="width:80px;height:34px;padding:0 8px;border:1px solid var(--bd);
+          border-radius:6px;font-size:13px;background:var(--bg3);"
+          oninput="updateSeunLayer()"/>
+        <div id="zw-seun-ganzi" style="font-family:'Noto Serif KR',serif;font-size:16px;
+          font-weight:700;color:var(--navy);"></div>
+        <button onclick="updateSeunLayer()"
+          style="padding:6px 14px;background:var(--navy);color:#fff;border:none;
+          border-radius:6px;font-size:12px;cursor:pointer;">적용</button>
+      </div>
+    </div>
   </div>
   <div id="p-synth" class="panel">
     <div class="sec-title">종합 풀이</div>
@@ -4228,6 +4274,7 @@ function renderZw(zwData, saju, dwArr, sy, sm, sd, sh, gender, origHr){
 
   // 전역 저장 — 팝업에서 사용
   window._zwPalaces = palaces;
+  window._zwData = zwData;
   const hwMap={};
   Object.entries(siHwa).forEach(([k,v])=>{if(v)hwMap[v]=k;});
   window._zwHwMap = hwMap;
@@ -4911,13 +4958,19 @@ function generate(){
   renderMs(s);
   renderDw(dwArr);
   renderOh(score);
-  // 전역 변수 저장 (세운 해석용)
+  // 전역 변수 저장
   window._geok = calcGeokgukAll(s, score);
   window._score = score;
   window._saju = s;
+  window._gender = g;
+  window._birthYear = y;
+  window._zwSeunYear = new Date().getFullYear();
+  window._zwLayer = 'bon';
   renderZw(zp, s, dwArr, sol.y, sol.m, sol.d, parseInt(adjustedHrVal)||0, g, parseInt(hrVal)||0);
   renderYongshin(s, score, curDw, activations);
   renderSy(s, dwArr, zp.palaces||[], score, g, y);
+  // 삼층 명반 초기화 (본명반으로 시작)
+  setTimeout(()=>{ switchZwLayer('bon', document.getElementById('zw-tab-bon')); }, 100);
   document.getElementById('result').style.display = 'block';
   document.getElementById('result').scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -6182,6 +6235,400 @@ function showMonthDetail(year, monthIdx, dwG, dwJ){
       ${items2||'<div style="font-size:12px;color:var(--text3);">특이 이슈 없음</div>'}
     </div>`;
   el.style.maxHeight='600px';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   자미두수 삼층 명반 (三層命盤) 시스템
+   본명반 / 대한명반 / 세운명반
+   ═══════════════════════════════════════════════════════════ */
+
+/* 사화표 */
+const ZW_SIHUA_TABLE = [
+  ['廉貞','破軍','武曲','太陽'],   // 甲(0)
+  ['天機','天梁','紫微','太陰'],   // 乙(1)
+  ['天同','天機','文昌','廉貞'],   // 丙(2)
+  ['太陰','天同','天機','巨門'],   // 丁(3)
+  ['貪狼','太陰','右弼','天機'],   // 戊(4)
+  ['武曲','貪狼','天梁','文曲'],   // 己(5)
+  ['太陽','武曲','太陰','天同'],   // 庚(6)
+  ['巨門','太陽','文曲','文昌'],   // 辛(7)
+  ['天梁','紫微','左輔','武曲'],   // 壬(8)
+  ['破軍','巨門','太陰','貪狼'],   // 癸(9)
+];
+const ZW_SIHUA_TYPES = ['化祿','化權','化科','化忌'];
+
+function calcSihuaByGan(ganIdx) {
+  const row = ZW_SIHUA_TABLE[ganIdx % 10];
+  return {
+    '化祿': row[0], '化權': row[1],
+    '化科': row[2], '化忌': row[3]
+  };
+}
+
+/* 대한 명궁 위치 계산 */
+function calcDahanMingGong(baseMingGong, dahanIdx, isYangMale) {
+  // 양남·음녀: 순행(+), 음남·양녀: 역행(-)
+  const dir = isYangMale ? 1 : -1;
+  return ((baseMingGong + dir * dahanIdx) + 120) % 12;
+}
+
+/* 소한(小限) 명궁 — 당해 나이 기준 */
+function calcSohanMingGong(gender, age) {
+  // 남: 寅(2)에서 순행, 여: 申(8)에서 역행
+  const isMale = gender === 'male';
+  const start  = isMale ? 2 : 8;
+  const dir    = isMale ? 1 : -1;
+  return ((start + dir * (age - 1)) + 120) % 12;
+}
+
+/* 세운 명궁 — 해당 년도 지지 */
+function calcSeunMingGong(year) {
+  // 세운 지지 = year % 12 기준 (子=0)
+  // 寅=2: 1902, 1914... 甲子=1924기준
+  const JI_BASE = 1864; // 甲子년, 子궁=0
+  return ((year - JI_BASE) % 12 + 120) % 12;
+}
+
+/* 삼층 명반 궁 배치 재계산 */
+function remapPalaces(palaces, newMingPos) {
+  // 원래 palaces[i].pos = i (본명반 기준 궁 위치)
+  // 새 명반: newMingPos 궁이 命宮이 됨
+  // 각 궁의 이름을 새로 매핑
+  const ZW_PALS_LIST = ['命宮','兄弟','夫妻','子女','財帛','疾厄','遷移','奴僕','官祿','田宅','福德','父母'];
+  return palaces.map((pal, i) => {
+    // 이 궁이 새 명반에서 몇 번째 궁인지
+    const newPalIdx = ((i - newMingPos) + 12) % 12;
+    return {
+      ...pal,
+      layerPalName: ZW_PALS_LIST[newPalIdx],
+      layerPalIdx: newPalIdx,
+    };
+  });
+}
+
+/* 사화 배지 생성 (층별 색상 구분) */
+function sihuaBadgeByLayer(star, sihua, layer) {
+  const colorMap = {
+    '화祿': {bon:'#cc0000', dahan:'#0055cc', seun:'#007700'},
+    '화권': {bon:'#cc0000', dahan:'#0055cc', seun:'#007700'},
+  };
+  const colors = {
+    bon:   {lu:'#cc0000', quan:'#0000cc', ke:'#006600', ji:'#cc0000'},
+    dahan: {lu:'#e67e00', quan:'#5b00cc', ke:'#007777', ji:'#e67e00'},
+    seun:  {lu:'#990099', quan:'#004499', ke:'#005500', ji:'#990099'},
+  };
+  const labels = {'化祿':'祿','化權':'權','化科':'科','化忌':'忌'};
+  const layerColors = colors[layer] || colors.bon;
+  const typeColorMap = {'化祿':layerColors.lu,'化權':layerColors.quan,'化科':layerColors.ke,'化忌':layerColors.ji};
+
+  let badges = '';
+  Object.entries(sihua).forEach(([type, starName]) => {
+    if(starName === star) {
+      const c = typeColorMap[type];
+      const layerMark = layer==='bon'?'':'<sup style="font-size:8px;opacity:0.7;">'+(layer==='dahan'?'대':'세')+'</sup>';
+      badges += `<span class="hw-badge" style="color:${c};">${labels[type]}${layerMark}</span>`;
+    }
+  });
+  return badges;
+}
+
+/* 현재 레이어 상태 */
+window._zwLayer = 'bon'; // 'bon' | 'dahan' | 'seun'
+window._zwSeunYear = new Date().getFullYear();
+
+/* 레이어 전환 메인 함수 */
+function switchZwLayer(layer, btn) {
+  window._zwLayer = layer;
+
+  // 탭 버튼 스타일
+  ['bon','dahan','seun'].forEach(l => {
+    const b = document.getElementById('zw-tab-'+l);
+    if(!b) return;
+    const active = l === layer;
+    b.style.background = active ? '#0f2556' : '#fff';
+    b.style.color      = active ? '#fff'    : '#0f2556';
+  });
+
+  // 세운 선택기 표시
+  const sel = document.getElementById('zw-seun-selector');
+  if(sel) sel.style.display = layer === 'seun' ? 'block' : 'none';
+
+  // 세운 연도 초기화
+  if(layer === 'seun') {
+    const inp = document.getElementById('zw-seun-year');
+    if(inp && !inp.value) inp.value = new Date().getFullYear();
+    window._zwSeunYear = parseInt(document.getElementById('zw-seun-year')?.value) || new Date().getFullYear();
+  }
+
+  renderZwLayer();
+}
+
+/* 세운 명반 업데이트 */
+function updateSeunLayer() {
+  const inp = document.getElementById('zw-seun-year');
+  if(inp) window._zwSeunYear = parseInt(inp.value) || new Date().getFullYear();
+  renderZwLayer();
+}
+
+/* 삼층 명반 렌더링 */
+function renderZwLayer() {
+  const pals    = window._zwPalaces;
+  const zwData  = window._zwData;
+  const saju    = window._saju;
+  const dwArr   = window._dwArr;
+  const gender  = window._gender || 'male';
+
+  // 데이터 없으면 리턴
+  if(!pals || !zwData || !saju || !dwArr) {
+    console.warn('renderZwLayer: 필요 데이터 없음', {pals:!!pals,zwData:!!zwData,saju:!!saju,dwArr:!!dwArr});
+    return;
+  }
+
+  const layer   = window._zwLayer;
+  const cy      = new Date().getFullYear();
+  const curDw   = dwArr.find(d=>cy>=d.sy&&cy<d.sy+10) || dwArr[0];
+  const curDwIdx= dwArr.indexOf(curDw);
+  const baseMingGong = zwData.mingGong;
+  const birthYear = window._birthYear || 1984;
+
+  // 사화 계산
+  const bonSihua   = zwData.siHwa; // 출생연간 기준
+  const yearGan    = saju[0].g;
+  const dahanGan   = curDw.g;
+  const seunYear   = window._zwSeunYear;
+  const seunGanIdx = ((seunYear - 1864) % 10 + 10) % 10; // 세운 천간
+  const dahanSihua = calcSihuaByGan(dahanGan);
+  const seunSihua  = calcSihuaByGan(seunGanIdx);
+
+  // 명궁 위치 계산
+  const isYangYear = yearGan % 2 === 0;
+  const isMale     = gender === 'male';
+  const isYangMale = isYangYear && isMale || !isYangYear && !isMale;
+
+  let layerMingPos, layerLabel, layerSihua, layerColor;
+
+  if(layer === 'bon') {
+    layerMingPos = baseMingGong;
+    layerLabel   = '본명반 (本命盤)';
+    layerSihua   = bonSihua;
+    layerColor   = '#0f2556';
+  } else if(layer === 'dahan') {
+    layerMingPos = calcDahanMingGong(baseMingGong, curDwIdx, isYangMale);
+    layerLabel   = `대한명반 — ${GH[curDw.g]}${JH[curDw.j]} (${curDw.age}세~)`;
+    layerSihua   = dahanSihua;
+    layerColor   = '#1a3a7a';
+  } else {
+    layerMingPos = calcSeunMingGong(seunYear);
+    const off    = ((seunYear - 1984) % 60 + 60) % 60;
+    const sg = off%10, sj = off%12;
+    layerLabel   = `세운명반 — ${GH[sg]}${JH[sj]} (${seunYear}년)`;
+    layerSihua   = seunSihua;
+    layerColor   = '#4a0080';
+
+    // 세운 간지 표시
+    const ganziEl = document.getElementById('zw-seun-ganzi');
+    if(ganziEl) ganziEl.textContent = `${GH[sg]}${JH[sj]}년`;
+  }
+
+  // 레이어 정보 표시
+  const infoEl = document.getElementById('zw-layer-info');
+  if(infoEl) infoEl.innerHTML = `<span style="color:${layerColor};font-weight:600;">현재: ${layerLabel}</span>`;
+
+  // 사화 표시 패널
+  const sihuaEl = document.getElementById('zw-sihua-display');
+  if(sihuaEl) {
+    const typeColors = {'化祿':'#cc0000','化權':'#0000cc','化科':'#006600','化忌':'#c0392b'};
+    const typeLabels = {'化祿':'화록(祿) — 풍요·기회','化權':'화권(權) — 권력·리더십','化科':'화과(科) — 명예·학문','化忌':'화기(忌) — 시련·주의'};
+    const typeBg = {'化祿':'#fff5f5','化權':'#f0f0ff','化科':'#f0fff0','化忌':'#fff8f0'};
+    sihuaEl.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:10px;
+        padding:10px 14px;margin-bottom:8px;">
+        <div style="font-size:10px;font-weight:700;color:${layerColor};letter-spacing:0.12em;
+          margin-bottom:8px;">${layerLabel} — 사화(四化)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+          ${ZW_SIHUA_TYPES.map(type=>`
+            <div style="background:${typeBg[type]};border:1px solid ${typeColors[type]}33;
+              border-radius:6px;padding:6px 8px;text-align:center;">
+              <div style="font-family:'Noto Serif KR',serif;font-size:14px;font-weight:700;
+                color:${typeColors[type]};">${layerSihua[type]}</div>
+              <div style="font-size:9px;color:${typeColors[type]};margin-top:2px;
+                font-weight:600;">${type}</div>
+              <div style="font-size:9px;color:#888;margin-top:1px;">${typeLabels[type].split('—')[1]}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  // 명반 재렌더링 (층별 궁 이름 + 사화 오버레이)
+  renderZwWithLayer(pals, zwData, layerMingPos, layerSihua, layer, layerColor, dwArr);
+}
+
+/* 층별 명반 렌더링 */
+function renderZwWithLayer(pals, zwData, layerMingPos, layerSihua, layer, layerColor, dwArr) {
+  const el = document.getElementById('ziwei');
+  if(!el) return;
+
+  const cy = new Date().getFullYear();
+
+  // 궁 재매핑
+  const remapped = remapPalaces(pals, layerMingPos);
+  const hwMap = window._zwHwMap || {};
+  const ZW_PALS_LIST = ['命宮','兄弟','夫妻','子女','財帛','疾厄','遷移','奴僕','官祿','田宅','福德','父母'];
+
+  function hwBadge2(starName) {
+    // 본명반 사화
+    const bonType = hwMap[starName];
+    // 층별 사화
+    const layerEntry = Object.entries(layerSihua).find(([k,v])=>v===starName);
+    const layerType  = layerEntry ? layerEntry[0] : null;
+
+    let html = '';
+    if(bonType && layer !== 'bon') {
+      // 본명반 사화 (작게, 회색)
+      const lbl = {'化祿':'祿','化權':'權','化科':'科','化忌':'忌'}[bonType]||'';
+      html += `<span class="hw-badge" style="color:#999;font-size:9px;">${lbl}<sup>본</sup></span>`;
+    } else if(bonType && layer === 'bon') {
+      const cls = {'化祿':'hw-lu','化權':'hw-quan','化科':'hw-ke','化忌':'hw-ji'}[bonType]||'';
+      const lbl = {'化祿':'祿','化權':'權','化科':'科','化忌':'忌'}[bonType]||'';
+      html += `<span class="hw-badge ${cls}">${lbl}</span>`;
+    }
+
+    if(layerType && layer !== 'bon') {
+      const colors = {dahan:{lu:'#e67e00',quan:'#5b00cc',ke:'#007777',ji:'#cc4400'}, seun:{lu:'#990099',quan:'#004499',ke:'#005500',ji:'#990055'}};
+      const c = colors[layer];
+      const typeColor = {'化祿':c.lu,'化權':c.quan,'化科':c.ke,'化忌':c.ji}[layerType];
+      const lbl = {'化祿':'祿','化權':'權','化科':'科','化忌':'忌'}[layerType]||'';
+      const mark = layer==='dahan'?'대':'세';
+      html += `<span class="hw-badge" style="color:${typeColor};font-weight:700;">${lbl}<sup style="font-size:8px;">${mark}</sup></span>`;
+    }
+    return html;
+  }
+
+  function mwhSpan(mwh) {
+    if(!mwh) return '';
+    const cls={'旺':'mwh-wang','廟':'mwh-miao','閑':'mwh-han','陷':'mwh-xian','平':''}[mwh]||'';
+    return `<span class="mwh ${cls}">${mwh}</span>`;
+  }
+
+  const GRID_LAYOUT = [[5,6,7,8],[4,'c','c',9],[3,'c','c',10],[2,1,0,11]];
+  el.innerHTML = '';
+  let centerAdded = false;
+
+  GRID_LAYOUT.forEach(row => {
+    row.forEach(posIdx => {
+      if(posIdx === 'c') {
+        if(!centerAdded) {
+          // 중앙 패널은 기존 내용 유지 (새로 만들지 않음)
+          const cDiv = document.createElement('div');
+          cDiv.className = 'zw-center';
+          cDiv.style.cssText = 'grid-column:2/4;grid-row:2/4;';
+
+          const zwGeok = window._zwGeokguk || [];
+          const geokHtml = zwGeok.length ? `
+            <div style="width:100%;margin-top:10px;border-top:1px solid #ddd;padding-top:10px;">
+              <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">자미두수 격국</div>
+              ${zwGeok.map((g,gi)=>{
+                const gc={1:'#0e7c6a',2:'#1a5fa8',3:'#b07d1a',4:'#c0392b'}[g.grade];
+                const gb={1:'#d0f0eb',2:'#d6e4ff',3:'#fff3cd',4:'#fee2e0'}[g.grade];
+                return `<div style="background:${gb};border:1px solid ${gc};border-radius:6px;
+                  padding:5px 8px;margin-bottom:4px;cursor:pointer;font-size:11px;"
+                  onclick="showZwGeokDetail(${gi})">
+                  <span style="color:${gc};font-weight:700;">${g.type==='귀'?'✨':'⚠'} ${g.name}</span>
+                </div>`;
+              }).join('')}
+            </div>` : '';
+
+          const jv = zwData;
+          const mingGong = zwData.mingGong;
+          const ZW_ZHI_H_ZI2 = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+          cDiv.innerHTML = `
+            <div style="font-size:11px;color:#888;margin-bottom:4px;text-align:center;
+              padding:3px 8px;background:${layerColor}22;border-radius:6px;
+              font-weight:600;color:${layerColor};">${
+                layer==='bon'?'본명반':layer==='dahan'?`대한명반 ${GH[dwArr[0]?.g]||''}`:
+                `세운명반 ${window._zwSeunYear}년`
+            }</div>
+            <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;">
+              ${jv.JU_NAMES[jv.ju]} · 본명궁 ${ZW_ZHI_H_ZI2[mingGong]}宮
+              ${layer!=='bon'?`<br><span style="color:${layerColor};">층 명궁: ${ZW_ZHI_H_ZI2[layerMingPos]}宮</span>`:''}
+            </div>
+            ${geokHtml}`;
+          el.appendChild(cDiv);
+          centerAdded = true;
+        }
+        return;
+      }
+
+      const pal = remapped[posIdx];
+      const div = document.createElement('div');
+
+      // 이 궁의 층별 이름
+      const layerPalName = pal.layerPalName;
+      const isMingInLayer = layerPalName === '命宮';
+
+      div.className = 'zw-palace' + (pal.isMing && layer==='bon' ? ' is-ming' : '')
+        + (isMingInLayer ? ' is-cur-dw' : '');
+      div.style.cursor = 'pointer';
+      div.onclick = () => showZwPalaceDetail(posIdx);
+
+      const mainHtml = pal.mains.map(s =>
+        `<div><span class="st-main">${s.name}${mwhSpan(s.mwh)}</span>${hwBadge2(s.name)}</div>`
+      ).join('');
+      const auxHtml = pal.auxs.map(s =>
+        `<div><span class="st-aux">${s.name}${mwhSpan(s.mwh)}</span>${hwBadge2(s.name)}</div>`
+      ).join('');
+      const salHtml = pal.sals.filter(s=>s.name!=='祿存').map(s =>
+        `<div><span class="st-sal">${s.name}${mwhSpan(s.mwh)}</span></div>`
+      ).join('');
+      const luHtml = pal.sals.filter(s=>s.name==='祿存').map(s =>
+        `<div><span class="st-aux">${s.name}${mwhSpan(s.mwh)}</span></div>`
+      ).join('');
+      const miscHtml = (pal.miscs||[]).map(s=>
+        `<div class="st-misc">${s.name}</div>`
+      ).join('');
+
+      // 대한 나이 표시
+      const dahanNums = [];
+      if(dwArr) {
+        const baseMing = zwData.mingGong;
+        dwArr.forEach((d,i)=>{
+          const dwPalPos = (baseMing+i)%12;
+          if(dwPalPos===posIdx){
+            const isCur=cy>=d.sy&&cy<d.sy+10;
+            dahanNums.push(`<span style="${isCur?'color:#cc0000;font-weight:700;':''}">${d.age}</span>`);
+          }
+        });
+      }
+
+      // 층별 궁 이름 색상
+      const palNameColor = isMingInLayer ? layerColor : (pal.isMing && layer!=='bon' ? '#888' : '#333');
+      const palNameBg = isMingInLayer ? layerColor+'22' : 'transparent';
+
+      div.innerHTML = `
+        <div class="zw-pal-inner">
+          <div class="zw-pal-left-col">
+            ${mainHtml}${luHtml}${auxHtml}${salHtml}
+          </div>
+          ${miscHtml ? `<div class="zw-pal-right-col">${miscHtml}</div>` : ''}
+        </div>
+        <div class="zw-pal-bottom">
+          <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+            <span style="font-size:10px;color:#888;">${GH[pal.palGan]}${pal.zhi}</span>
+            <div style="display:flex;align-items:center;gap:3px;">
+              <span class="zw-palname" style="color:#888;font-size:11px;">${pal.palName}</span>
+              ${layer!=='bon' ? `<span style="font-family:'Noto Serif KR',serif;font-size:12px;
+                font-weight:700;color:${palNameColor};background:${palNameBg};
+                padding:0 4px;border-radius:3px;">${layerPalName}</span>` : 
+                `<span class="${pal.isMing?'zw-palname is-ming-lbl':'zw-palname'}">${pal.palName}${pal.isShen?'<span style="font-size:10px;background:#e91e63;color:#fff;padding:0 3px;border-radius:2px;margin-left:2px;">身</span>':''}</span>`}
+            </div>
+          </div>
+          <div style="font-size:11px;color:#888;text-align:right;line-height:1.4;">
+            ${dahanNums.join('<br>')}
+          </div>
+        </div>`;
+      el.appendChild(div);
+    });
+  });
 }
 
 function swTab(n,el){
