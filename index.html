@@ -3861,7 +3861,14 @@ function calcNaeGyeok(s,score){
   if(pagyeok_touChul_attacked) geokStrength -= 25; // 투출천간 충극: 格의 표출 직접 손상
   if(pagyeok_hap)              geokStrength -= 20; // 합거: 格 에너지가 묶임
 
-  geokStrength = Math.max(10, geokStrength); // 최소 10% (格의 성향은 완전히 사라지지 않음)
+  geokStrength = Math.max(10, geokStrength); // 최소 10%
+
+  // 파격 사유 목록
+  const pagyeokReasons = [];
+  if(pagyeok_basic)            pagyeokReasons.push('格 오행 극하는 천간 존재');
+  if(pagyeok_mji_chung)        pagyeokReasons.push('월지 충(冲)으로 格의 뿌리 손상');
+  if(pagyeok_touChul_attacked) pagyeokReasons.push('투출 천간이 충극을 받아 格 약화');
+  if(pagyeok_hap)              pagyeokReasons.push('格 천간이 합(合)에 묶여 약화(合去)');
 
   const isPagyeok = pagyeokReasons.length > 0;
   const pagyeokDesc = pagyeokReasons.join(' / ');
