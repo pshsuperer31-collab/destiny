@@ -2026,7 +2026,7 @@ function calcJonggeyok(s,score){
   samhapAbsorbedJi.forEach(j=>{
     const ji_idx=allJi.indexOf(j);
     const jiW=[17.5,32.5,22.5,27.5][ji_idx];
-    const shift=jiW*0.4;
+    const shift=jiW*0.8; // 삼합국 완성 시 80% 변질 (완전 삼합은 거의 완전 변환)
     const samhapEl=SAMHAP_EL[SAMHAP_SETS.findIndex(set=>set.includes(j))];
     adjScore[JEL[j]]-=shift;
     adjScore[samhapEl]+=shift;
@@ -2035,9 +2035,21 @@ function calcJonggeyok(s,score){
   const helpRatio=(adjScore[biEl]+adjScore[inEl])/adjTotal;
   const biRatio=adjScore[biEl]/adjTotal, inRatio=adjScore[inEl]/adjTotal;
 
-  // 삼합 편입되지 않은 지지에만 인성/비겁 체크
-  const jiHasHelp=s.some(p=>!samhapAbsorbedJi.has(p.j)&&(JEL[p.j]===biEl||JEL[p.j]===inEl));
-  if(helpRatio>0.20||jiHasHelp) return null;
+  // ★ 일간 실질 통근 수 — 삼합 편입된 지지 제외
+  const jizhiEls_j = (ji) => JJG_DETAIL[ji].filter(g=>g).map(g=>GEL[GH_IDX[g]]);
+  const allRoots = s.filter(p => jizhiEls_j(p.j).includes(dEl));
+  const effectiveRoots_j = allRoots.filter(p => !samhapAbsorbedJi.has(p.j));
+  const effectiveRootCount_j = effectiveRoots_j.length;
+
+  // ★ 종格 판정 기준 (선생님 이론 반영)
+  // 조건A: 엄격 — helpRatio<=0.20 + 지지 인성/비겁 없음 (기존)
+  // 조건B: 완화 — 삼합으로 실질 통근 0개 + helpRatio<=0.25 (삼합국 완성 사주)
+  //   → 삼합국이 완성되어 뿌리가 완전히 소멸된 경우, 남은 인성/비겁 지지가
+  //     미약해도(未土 등) 종格으로 봄
+  const condA = helpRatio <= 0.20 && !jiHasHelp;
+  const condB = effectiveRootCount_j === 0 && helpRatio <= 0.27 &&
+                !s.some((p,i)=>i!==2&&(GEL[p.g]===biEl||GEL[p.g]===inEl)); // 일간 제외, 천간에도 비겁/인성 없어야
+  if(!condA && !condB) return null;
 
   const p=v=>Math.round(v/adjTotal*100);
 
@@ -2090,7 +2102,7 @@ function calcGaJong(s, score) {
           // 지지 가중치 기반으로 변질량 계산 (해당 지지의 점수 약 40% 변질)
           const ji_idx = allJi.indexOf(j);
           const jiW = [17.5, 32.5, 22.5, 27.5][ji_idx];
-          const shift = jiW * 0.4; // 40% 변질
+          const shift = jiW * 0.8; // 삼합국 완성 시 80% 변질
           adjScore[jEl] -= shift;
           adjScore[samhapEl] += shift;
         }
