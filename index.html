@@ -6,7 +6,7 @@
 <title>사주 & 자미두수 명반</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500&family=Playfair+Display:wght@200;300;400&display=swap" rel="stylesheet"/>
 <!-- 귀格 DB (작아서 미리 로드) -->
-<script src="db/db_guigyeok.js"></script>
+<script src="db_guigyeok.js"></script>
 <style>
 :root{
   --bg:#f4f6fb;--bg2:#ffffff;--bg3:#eef1f8;
@@ -5366,7 +5366,7 @@ function loadIljuDB(dayGan, dayJi, callback) {
   if(!engName) { callback(); return; }
 
   const script = document.createElement('script');
-  script.src = `db/db_ilju_${engName}.js`;
+  script.src = `db_ilju_${engName}.js`;
   script.onload = () => { _ILJU_DB_LOADED[ilju] = true; callback(); };
   script.onerror = () => { console.warn(`DB 로드 실패: ${ilju}`); callback(); };
   document.head.appendChild(script);
@@ -5486,6 +5486,20 @@ function generate(){
     // ① 원국 고정 풀이 렌더링 (일주 × 출생월지 × 출생시간)
     const wrap = document.getElementById('origin-detail-wrap');
     if(wrap){
+      // 디버그: 실제 조회 키 확인
+      const _GAN=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+      const _JI=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+      const _MON=['子月','丑月','寅月','卯月','辰月','巳月','午月','未月','申月','酉月','戌月','亥月'];
+      const _key = `${_GAN[s[2].g]}${_JI[s[2].j]}-${_MON[s[1].j]}-${_GAN[s[3].g]}${_JI[s[3].j]}時`;
+      console.log('🔑 DB 조회 키:', _key);
+      console.log('📦 ILJU_DETAIL_DB 존재:', typeof ILJU_DETAIL_DB !== 'undefined');
+      if(typeof ILJU_DETAIL_DB !== 'undefined'){
+        console.log('📦 DB 항목 수:', Object.keys(ILJU_DETAIL_DB).length);
+        console.log('🔍 키 매칭:', !!ILJU_DETAIL_DB[_key]);
+        const sample = Object.keys(ILJU_DETAIL_DB)[0];
+        console.log('📋 DB 첫 번째 키:', sample);
+      }
+
       const html = renderIljuDetailSection(s[2].g, s[2].j, s[1].j, s[3].g, s[3].j, '📖 나의 사주 풀이', '일주 × 월지 × 출생시간 기반 고정 분석');
       if(html) wrap.innerHTML = html;
       else wrap.innerHTML = `<div style="margin-top:12px;padding:14px 16px;background:var(--bg2);border:1px solid var(--bd);border-radius:12px;text-align:center;color:var(--text3);font-size:12px;">이 일주의 상세 풀이 DB를 준비 중입니다.</div>`;
