@@ -7447,17 +7447,46 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   /* ⑤ 삼합(三合) 완성 체크 */
   const SAMHAP_SETS = [[0,4,8],[1,5,9],[2,6,10],[3,7,11]];
   const SAMHAP_EL   = [4,2,0,3]; // 수목토금
+  const SAMHAP_NM   = ['수','목','토','금'];
   SAMHAP_SETS.forEach((set,i)=>{
     const cnt=set.filter(j=>allJi.includes(j)).length;
     if(cnt>=3&&set.includes(swJ)){
       const el=SAMHAP_EL[i];
-      // 일간에 유리한 오행이면 +, 불리하면 -
-      const isGood = (el===dgEl)||(el===(dgEl+4)%5); // 같은 오행 or 생하는 오행
+      const isGood = (el===dgEl)||(el===(dgEl+4)%5);
       const sc = isGood ? 2 : -1;
       total += sc; cats.add('CAREER');
-      details.push({ label:'삼합 완성', score:sc,
-        desc:`${['수','목','토','금'][i]}국 삼합 — ${isGood?'일간 강화, 에너지 결집':'일간 압박 강화'}`,
-        color: isGood?'#0e7c6a':'#b07d1a', cats:['CAREER'] });
+
+      // ★ 일지 십성 기반 삼합 의미 세분화 ★
+      const JJG_Hs=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
+        ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
+        ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+      const ganHs=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+      const iljuSSs = getSS_(dg, ganHs.indexOf(JJG_Hs[s[2].j][JJG_Hs[s[2].j].length-1]));
+      const jaeEls = (dgEl+2)%5; // 재성 오행
+      const sikEls = (dgEl+1)%5; // 식상 오행 (자녀)
+
+      let extraMsg = '';
+      // 삼합 오행이 재성이고 일지가 재성 → 배우자 인연 활성화
+      if(el===jaeEls && ['正財','偏財'].includes(iljuSSs)){
+        extraMsg = ' 💕 일지(배우자·연인 자리)가 삼합으로 완전히 활성화됩니다. 결혼·약혼·중요한 인연이 맺어지는 시기입니다.';
+        cats.add('RELATION');
+        total += 1; // 배우자 인연 추가 보정
+      }
+      // 삼합 오행이 식상 → 자녀 인연
+      else if(el===sikEls){
+        extraMsg = ' 👶 식상 삼합으로 자녀 인연이 활성화됩니다. 임신·출산·자녀 관련 좋은 소식이 올 수 있습니다.';
+        cats.add('RELATION');
+      }
+      // 가종재格 성향 + 재성 삼합 → 시너지
+      const origTd = window._geok?.tendencyGeok;
+      const isJongJae = origTd && (origTd.name.includes('종재') || origTd.name.includes('가종재'));
+      if(isJongJae && el===jaeEls){
+        extraMsg += ' ★ 가종재格 성향에서 재성 삼합 완성 — 삶의 방향과 완벽히 일치하는 최상의 시기입니다.';
+      }
+
+      details.push({ label:'삼합 완성', score:sc+(el===jaeEls&&['正財','偏財'].includes(iljuSSs)?1:0),
+        desc:`${SAMHAP_NM[i]}국 삼합 — ${isGood?'일간 강화, 에너지 결집':'일간 압박 강화'}${extraMsg}`,
+        color: isGood?'#0e7c6a':'#b07d1a', cats:['CAREER',...(extraMsg?['RELATION']:[])] });
     }
   });
 
@@ -7523,6 +7552,55 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
       details.push({ label:'비견·재물 경쟁', score:0,
         desc:'나와 비슷한 위치의 사람과 재물·기회를 두고 경쟁하는 구도가 생깁니다. 협력과 경쟁의 균형을 잘 잡으세요.',
         color:'#b07d1a', cats:['MONEY'] });
+    }
+  }
+
+  /* ⑦-2 ★ 가종格 + 대운 방향 체크 ★
+     가종格 성향 사주에서 대운이 종하는 방향을 막으면
+     → 목표·사업이 지연되는 패턴 메시지 */
+  {
+    const origTd2 = window._geok?.tendencyGeok;
+    const isGaJong = origTd2 && origTd2.name;
+    if(isGaJong){
+      const jongEl2  = origTd2.el; // 종하는 오행 (예: 火=1)
+      const swGEl2   = GEL[swG];
+      const swJEl2   = JEL[swJ];
+      const dwGEl2   = GEL[dwG];
+      const dwJEl2   = JEL[dwJ];
+      const ENM_S8   = ['木','火','土','金','水'];
+
+      // 대운이 종格 방향을 극하는 오행인지
+      // 예: 종재格(火) → 대운에 水가 강하면 火를 극 → 방해
+      const jongEnemyEl = GEUK[jongEl2]; // 종格 방향을 극하는 오행
+      const isDwBlockingJong = (dwGEl2===jongEnemyEl || dwJEl2===jongEnemyEl);
+
+      // 세운이 종格 방향과 일치 + 대운이 방해 → 원하는 만큼 안 됨
+      const isSwMatchJong = (swGEl2===jongEl2 || swJEl2===jongEl2);
+
+      if(isDwBlockingJong && isSwMatchJong){
+        // 세운은 방향이 맞는데 대운이 막는 구조
+        details.push({ label:'대운 방해', score:0,
+          desc:`세운의 ${ENM_S8[jongEl2]} 에너지가 이 사주의 방향성과 일치하지만, 대운의 ${ENM_S8[jongEnemyEl]} 기운이 그 흐름을 억제하고 있습니다. 원하는 방향으로 가려는 의지는 강하지만 현실적으로 진행이 더디거나 장애물이 생기기 쉬운 시기입니다. 무리한 추진보다 준비를 탄탄히 다지는 것이 유리합니다.`,
+          color:'#8e44ad', cats:['CAREER'] });
+      }
+
+      // ★ 가종格 + 재성 자형 = 에너지 폭발 ★
+      // 종하는 오행이 자형을 이루면 → 억눌렸던 에너지 폭발적 방출
+      const JAJYEONG2 = new Set([6,11,9,4]); // 午·亥·酉·辰
+      const allJi2 = [...s.map(p=>p.j), dwJ, swJ];
+      // 종格 오행 지지 개수
+      const jongJiList = allJi2.filter(j => JEL[j]===jongEl2);
+      const hasJajyeong = JAJYEONG2.has(swJ) && jongJiList.filter(j=>j===swJ).length >= 2;
+      // 또는 세운 지지가 종格 오행이고 원국에 같은 지지가 이미 있으면
+      const jongJiInOrigin = s.map(p=>p.j).filter(j=>JEL[j]===jongEl2&&JAJYEONG2.has(j));
+      const isJajyeongActivated = jongJiInOrigin.some(j=>j===swJ);
+
+      if(isJajyeongActivated){
+        total += 1; cats.add('CAREER');
+        details.push({ label:'자형 에너지 폭발', score:1,
+          desc:`이 사주의 핵심 오행(${ENM_S8[jongEl2]})이 자형(自刑)으로 활성화됩니다. 오랫동안 눌려있던 에너지가 한꺼번에 분출되는 시기로, 준비해왔던 일들이 예상보다 빠르게 진행되거나 중요한 결실이 맺어질 수 있습니다. 에너지가 폭발적으로 작용하므로 방향을 잘 잡는 것이 중요합니다.`,
+          color:'#0e7c6a', cats:['CAREER'] });
+      }
     }
   }
 
