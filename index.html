@@ -3897,17 +3897,61 @@ function calcNaeGyeok(s,score){
     return hapPeer!=null && ganList.includes(hapPeer);
   });
 
+  // 5) ★ 월지가 다른 지지와 합에 묶이면 格의 본거지 약화 ★
+  // 육합으로 월지가 다른 지지와 묶이면 格의 뿌리가 변질됨
+  const dgEl = GEL[dg];
+  const YUKH_MAP = {0:1,1:0,2:11,11:2,3:10,10:3,4:9,9:4,5:8,8:5,6:7,7:6};
+  const mJiYukhTarget = YUKH_MAP[mJi];
+  const pagyeok_mji_hap = mJiYukhTarget!=null && jiList.some((j,i)=>i!==1 && j===mJiYukhTarget);
+
+  // 6) ★ 자형(自刑) — 같은 지지가 2개 이상이면 형살 ★
+  // 午午·亥亥·酉酉·辰辰 자형: 格 오행 지지가 2개 이상이면 불안정
+  const JAJYEONG = new Set([6,11,9,4]); // 午·亥·酉·辰
+  const mJiCount = jiList.filter(j=>j===mJi).length;
+  const pagyeok_jajyeong = JAJYEONG.has(mJi) && mJiCount >= 2; // 월지 자형
+  const geokElJiList = jiList.filter(j => JEL[j]===bongiEl);
+  const pagyeok_geok_jajyeong = geokElJiList.length >= 2 && JAJYEONG.has(geokElJiList[0]);
+
   // ★ 格 강도 스케일링 ★
-  // 파격 요인별 감점으로 格이 얼마나 살아있는지 0~100%로 표현
   let geokStrength = 100;
 
-  if(!touChul)                 geokStrength -= 20; // 미투출: 格의 표출이 없음
-  if(pagyeok_mji_chung)        geokStrength -= 50; // 월지 충 → 뿌리 직접 손상 (가장 강한 파격)
-  if(pagyeok_touChul_attacked) geokStrength -= 15; // 투출천간 충극 → 格 표출이 공격받음
-  if(pagyeok_hap)              geokStrength -= 10; // 합거 → 格 에너지 묶임
-  if(pagyeok_basic)            geokStrength -= 15; // 格극 천간 존재 (미투출 경우)
+  if(!touChul)                 geokStrength -= 20; // 미투출
+  if(pagyeok_mji_chung)        geokStrength -= 50; // 월지 충 → 뿌리 직접 손상
+  if(pagyeok_touChul_attacked) geokStrength -= 15; // 투출천간 충극
+  if(pagyeok_hap)              geokStrength -= 10; // 합거
+  if(pagyeok_basic)            geokStrength -= 15; // 格극 천간 존재
+  if(pagyeok_mji_hap)          geokStrength -= 15; // 월지 합거 → 格 본거지 변질
+  if(pagyeok_jajyeong || pagyeok_geok_jajyeong) geokStrength -= 10; // 자형 → 格 에너지 불안정
 
-  geokStrength = Math.max(10, geokStrength); // 최소 10%
+  // ★ 극신약 + 오행 압도 → 格 강도 자동 약화 ★
+  // 파격 요인이 없어도 일간이 극신약하고 특정 오행이 압도적이면
+  // 실질적으로 그 오행에 종(從)하는 구조 → 格의 힘이 약화됨
+  let isJongSeong = false; // 종格 성향 여부
+  let jongEl = null;       // 종하는 오행
+  if(score){
+    const total2 = score.reduce((a,b)=>a+b,0);
+    if(total2>0){
+      const dgEl2    = GEL[dg];
+      const helpRatio2 = (score[dgEl2]+score[SAENG_BY[dgEl2]])/total2;
+      // 극신약 기준: 도움오행 20% 이하
+      if(helpRatio2 <= 0.20){
+        // 가장 강한 오행 찾기 (일간·인성 제외)
+        const candidates2 = [SAENG[dgEl2], GEUK[dgEl2], [0,1,2,3,4].find(i=>GEUK[i]===dgEl2)];
+        const top2 = candidates2.reduce((a,b)=>score[a]>score[b]?a:b);
+        const topRatio2 = score[top2]/total2;
+        // 40% 이상 압도 → 종格 성향
+        if(topRatio2 >= 0.40){
+          isJongSeong = true;
+          jongEl = top2;
+          // 格 강도 추가 약화 (압도 비율이 높을수록 더 약화)
+          const extraWeaken = Math.round((topRatio2 - 0.40) * 100); // 0~60
+          geokStrength -= (20 + extraWeaken); // 최소 -20% 추가
+        }
+      }
+    }
+  }
+
+  geokStrength = Math.max(10, geokStrength);
 
   // 파격 사유 목록
   const pagyeokReasons = [];
@@ -3915,14 +3959,15 @@ function calcNaeGyeok(s,score){
   if(pagyeok_mji_chung)        pagyeokReasons.push('월지 충(冲)으로 格의 뿌리 손상');
   if(pagyeok_touChul_attacked) pagyeokReasons.push('투출 천간이 충극을 받아 格 약화');
   if(pagyeok_hap)              pagyeokReasons.push('格 천간이 합(合)에 묶여 약화(合去)');
+  if(pagyeok_mji_hap)          pagyeokReasons.push('월지가 합(合)에 묶여 格의 본거지 변질');
+  if(pagyeok_jajyeong || pagyeok_geok_jajyeong) pagyeokReasons.push('자형(自刑)으로 格 오행 불안정');
 
   const isPagyeok = pagyeokReasons.length > 0;
   const pagyeokDesc = pagyeokReasons.join(' / ');
 
-  // ★ 파격 내격 → 실질 종격 경향 판단 ★
-  // 파격이고 格 강도 50% 이하이면, score 기준으로 압도적 오행 찾아 종격 경향 표시
+  // ★ 실질 종格 경향 판단 (파격 OR 극신약 압도) ★
   let tendencyGeok = null;
-  if(isPagyeok && geokStrength <= 50 && score){
+  if(((isPagyeok && geokStrength <= 50) || isJongSeong) && score){
     const total2 = score.reduce((a,b)=>a+b,0);
     if(total2 > 0){
       // 일간 기준 십성별 오행
@@ -3959,7 +4004,37 @@ function calcNaeGyeok(s,score){
     }
   }
 
-  return{type:'NAE',name,ss,bongiGan,bongiEl,touChul,isPagyeok,pagyeokDesc,geokStrength,tendencyGeok,mJi};
+  // 극신약 종格 성향이면 설명 보강 + 가종格 명칭 부여
+  if(isJongSeong && tendencyGeok && !isPagyeok){
+    const ENM_S6 = ['木','火','土','金','水'];
+    const total6 = score ? score.reduce((a,b)=>a+b,0) : 0;
+    const helpDisp = total6 ? Math.round((score[GEL[dg]]+score[SAENG_BY[GEL[dg]]])/total6*100) : 0;
+
+    // 가종格 명칭 매핑
+    const gaJongMap = {
+      '종아격(從兒格) 경향':  '가종아격(假從兒格)',
+      '종재격(從財格) 경향':  '가종재격(假從財格)',
+      '종살격(從殺格) 경향':  '가종살격(假從殺格)',
+      '종약격(從弱格) 경향':  '가종약격(假從弱格)',
+      '종강격(從强格) 경향':  '가종강격(假從强格)',
+    };
+    const gaJongName = gaJongMap[tendencyGeok.name] || tendencyGeok.name;
+    tendencyGeok.name = gaJongName;
+
+    // 방해요소 확인 (인성·비겁 오행이 사주에 있으면 완전한 종格 불가 → 가종格 이유)
+    const dgEl6 = GEL[dg];
+    const biEl6 = dgEl6, inEl6 = SAENG_BY[dgEl6];
+    const hasObstacle = s.some((p,i)=> GEL[p.g]===biEl6||GEL[p.g]===inEl6||JEL[p.j]===biEl6||JEL[p.j]===inEl6);
+
+    tendencyGeok.desc = `일간이 극신약(도움오행 ${helpDisp}%)하고 ${ENM_S6[tendencyGeok.el]}이 ${tendencyGeok.ratio}%로 압도합니다. `
+      + (hasObstacle
+        ? `사주에 비겁·인성 오행이 남아있어 완전한 종格은 아니나, `
+        : ``)
+      + `실질적으로 <strong>${gaJongName}</strong>으로 흘러가는 구조입니다. `
+      + `<br><span style="font-size:11px;color:#b07d1a;">⚠ 방해요소(비겁·인성)가 완전한 종(從)을 막으므로, ${ENM_S6[tendencyGeok.el]} 오행 대운에서 잘 풀리지만 비겁·인성 운에서 흔들릴 수 있습니다.</span>`;
+  }
+
+  return{type:'NAE',name,ss,bongiGan,bongiEl,touChul,isPagyeok,pagyeokDesc,geokStrength,tendencyGeok,isJongSeong,jongEl,mJi};
 }
 
 /* ⑤ 신강약 */
@@ -4783,6 +4858,7 @@ function selectDw(idx){
         ['samhap_completed_by_dw','dw_gan_hap','dw_gan_chung','dormant_chung_activated','banghap_completed_by_dw'].includes(a.type)
       ).map(a=>{
         if(a.type==='samhap_completed_by_dw') return `<span style="color:#0e7c6a;">★삼합완성(${ENM_S2[a.hwEl]})</span>`;
+        if(a.type==='jong_banhap_interference') return `<span style="color:#8e44ad;">⚠종格방해반합(${ENM_S2[a.hwEl]})</span>`;
         if(a.type==='banghap_completed_by_dw') return `<span style="color:#1a5fa8;">▲방합완성(${ENM_S2[a.hwEl]})</span>`;
         if(a.type==='dw_gan_hap')   return `<span style="color:#1a5fa8;">천간합→${ENM_S2[a.hwEl]}</span>`;
         if(a.type==='dw_gan_chung') return `<span style="color:#c0392b;">천간충</span>`;
@@ -5018,6 +5094,18 @@ function renderDwDetail(idx){
           원국의 <strong>${origGeok.name}</strong> 성향에서
           <strong>${dwGeok.name}</strong> 에너지가 강하게 활성화됩니다.
           이 대운에서 직업·역할·인생 방향에 큰 변화가 올 수 있습니다.
+          ${(()=>{
+            // ★ 상관생재(傷官生財) 패턴 감지 ★
+            // 원국이 종재格 성향 + 대운格이 식상格 → 상관이 재성을 생하는 최상 구조
+            const origTendency = origGeok.tendencyGeok;
+            const isOrigJongJae = origTendency && (origTendency.name.includes('종재') || origTendency.name.includes('가종재'));
+            const isDwSikSang = dwGeok.ss === '食神' || dwGeok.ss === '傷官';
+            if(isOrigJongJae && isDwSikSang){
+              const ENM_SS = ['木','火','土','金','水'];
+              return `<br><span style="color:#0e7c6a;font-weight:600;">★ 상관생재(傷官生財) 구조!</span> 원국의 종재格 성향과 대운의 식상格이 연결되어, 식상이 재성을 생하는 최상의 흐름이 만들어집니다. 이 대운에서 재능·표현·활동이 재물과 성취로 이어집니다.`;
+            }
+            return '';
+          })()}
         </div>`:`
         <div style="margin-top:8px;font-size:11px;color:var(--text3);">
           원국格과 같은 방향 — 타고난 格이 이 대운에서도 유지됩니다.
@@ -5028,6 +5116,17 @@ function renderDwDetail(idx){
         <div style="margin-top:8px;padding:6px 10px;background:#fee2e0;border-radius:6px;
           font-size:11px;color:#c0392b;">
           ⚠ 파격 사유: ${dwGeok.pagyeokDesc}
+        </div>` : ''}
+
+        <!-- 종格 방해 반합 경고 -->
+        ${(window._dwActivations||[]).some(a=>a.type==='jong_banhap_interference') ? `
+        <div style="margin-top:8px;padding:8px 10px;background:#f3e5f5;border-radius:8px;
+          border-left:3px solid #8e44ad;font-size:12px;color:var(--text2);line-height:1.6;">
+          <div style="font-size:11px;font-weight:700;color:#8e44ad;margin-bottom:3px;">
+            ⚠ 종格 방해 반합 감지
+          </div>
+          ${(window._dwActivations||[]).filter(a=>a.type==='jong_banhap_interference').map(a=>a.desc).join('<br>')}
+          <br><span style="font-size:11px;color:#8e44ad;">→ 이 대운에서 완전히 종(從)하지 못하고 내적 갈등이 생길 수 있습니다. 가종格 성향이 강화됩니다.</span>
         </div>` : ''}
 
         <!-- 실질 종格 경향 -->
@@ -5729,7 +5828,7 @@ function analyzeOriginalHapChung(s) {
     }
   }
 
-  return { hapMap, chungMap, cancelled, jiList, ganList };
+  return { hapMap, chungMap, cancelled, jiList, ganList, s };
 }
 
 // 대운 개입으로 인한 원국 변화 활성화 분석
@@ -5814,7 +5913,7 @@ function analyzeDwActivation(origAnalysis, dwG, dwJ) {
   }
 
   // 5. 대운 천간이 사주 천간과 충 (甲庚·乙辛·丙壬·丁癸)
-  const CHEON_CHUNG_PAIRS=[[0,6],[1,7],[2,8],[3,9],[4,9],[5,8]]; // 대표적 천간충
+  const CHEON_CHUNG_PAIRS=[[0,6],[1,7],[2,8],[3,9],[4,9],[5,8]];
   for(const [a,b] of CHEON_CHUNG_PAIRS){
     const matchGan=(dwG===a)?b:(dwG===b)?a:null;
     if(matchGan===null) continue;
@@ -5826,6 +5925,39 @@ function analyzeDwActivation(origAnalysis, dwG, dwJ) {
       affectedGanPos:partnPos,
       chungMask:0.7
     });
+  }
+
+  // 6. ★ 종格 방해 반합 감지 ★
+  // 종格·가종格 성향 사주에서 대운 지지가 인성·비겁 오행의 반합을 완성하면
+  // → 종하려는 방향에 역행 → "가종格 방해" 신호
+  const s_ = origAnalysis.s || null;
+  if(s_){
+    const dg_ = s_[2].g;
+    const dgEl_ = GEL[dg_];
+    const inEl_ = SAENG_BY[dgEl_]; // 인성 오행
+    const biEl_ = dgEl_;           // 비겁 오행
+
+    for(const {a,b,hwEl,hasWang} of BANHAP){
+      // 반합 완성 오행이 인성 또는 비겁이면 → 종格 방해
+      if(hwEl !== inEl_ && hwEl !== biEl_) continue;
+      // 원국 지지에 반합 멤버 하나 있고 대운 지지가 나머지 하나
+      const hasA = jiList.includes(a);
+      const hasB = jiList.includes(b);
+      const dwIsA = dwJ === a;
+      const dwIsB = dwJ === b;
+
+      if((hasA && dwIsB) || (hasB && dwIsA)){
+        const existingJi = (hasA && dwIsB) ? a : b;
+        const ENM_S7 = ['木','火','土','金','水'];
+        activations.push({
+          type:'jong_banhap_interference',
+          desc:`대운 지지 ${JH[dwJ]}이 원국 ${JH[existingJi]}와 반합하여 ${ENM_S7[hwEl]}(인성·비겁) 오행이 강화됩니다. 종格 성향 사주에서 이는 종하는 방향에 역행하는 방해 요소입니다.`,
+          hwEl,
+          isObstacle: true,
+          interfereEl: hwEl
+        });
+      }
+    }
   }
 
   return activations;
@@ -5959,6 +6091,10 @@ function calcOhaengWithDW(s, dwG, dwJ) {
     if(act.type==='dw_gan_chung'&&act.affectedGanPos!=null){
       const origEl=GEL[s[act.affectedGanPos]?.g??0];
       score[origEl] = Math.max(0, score[origEl]*0.80);
+    }
+    // ★ 종格 방해 반합: 인성·비겁 오행 강화 (일간 뿌리 보강 효과)
+    if(act.type==='jong_banhap_interference'){
+      score[act.hwEl] += 8; // 반합으로 인성·비겁 오행 강화
     }
   }
 
