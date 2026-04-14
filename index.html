@@ -1945,11 +1945,29 @@ function calcHwagyeok(s){
     const hwEl=CHEONGAN_HAP_EL[`${dg}-${og}`];
     if(hwEl===undefined) continue;
     const mBEl=GEL[GH_IDX[JJG_DETAIL[mJi][2]]];
+    // 월지 득기 체크
     if(mBEl===hwEl||JEL[mJi]===hwEl){
       return{type:'HWA',name:HWA_NAMES[hwEl],hwEl,
         yongshinEl:SAENG_BY[hwEl],heeshinEl:SAENG[SAENG_BY[hwEl]],gishinEl:GEUK[hwEl],
         desc:`일간 ${GH[dg]}과 ${GH[og]}이 천간합하여 ${ENM[hwEl]}으로 화(化)하고, 월지 ${JH[mJi]}에서 득기합니다. 화격이 성립하면 화기(化氣) 오행을 생하는 ${ENM[SAENG_BY[hwEl]]}이 용신입니다.`};
     }
+  }
+  return null;
+}
+
+/* ① -2 합화불성립 보정 (乙庚합 등 — 월지 불성립 시 억부에 영향)
+   일간과 시간(또는 연간)이 합되어 있고 합화가 불성립이면
+   실질적으로 일간이 관살에 묶여 있는 구조 → 억부용신 보정에 활용 */
+function getGanHapInfo(s) {
+  const dg = s[2].g;
+  // 일간과 합하는 천간 탐색 (시간 우선, 연간·월간도 체크)
+  for(const og of [s[3].g, s[1].g, s[0].g]) {
+    const hwEl = CHEONGAN_HAP_EL[`${dg}-${og}`];
+    if(hwEl === undefined) continue;
+    const mJi = s[1].j;
+    const mBEl = GEL[GH_IDX[JJG_DETAIL[mJi][2]]];
+    const hwaOk = (mBEl===hwEl || JEL[mJi]===hwEl);
+    return { og, hwEl, hwaOk, ogEl: GEL[og] };
   }
   return null;
 }
@@ -2003,50 +2021,34 @@ function calcGaJong(s, score) {
   const dg = s[2].g, dEl = GEL[dg];
   const total = score.reduce((a,b)=>a+b, 0);
   const biEl = dEl, inEl = SAENG_BY[dEl];
-  const gwanEl = [0,1,2,3,4].find(i=>GEUK[i]===dEl); // 관성: 일간을 극하는 오행
+  const gwanEl = [0,1,2,3,4].find(i=>GEUK[i]===dEl);
   const sikEl = SAENG[dEl], jaeEl = GEUK[dEl];
 
-  // 지지별 지장간 오행 계산
-  const jizhiEls = (ji) => JJG_DETAIL[ji].map(g => GEL[GH_IDX[g]]);
+  const jizhiEls = (ji) => JJG_DETAIL[ji].filter(g=>g).map(g=>GEL[GH_IDX[g]]);
 
-  // 일간 통근 지지 수
-  const roots = s.filter((p,i) => i !== 2 && jizhiEls(p.j).includes(dEl));
+  // ★ 일지 포함 전체 4기둥 지지에서 통근 수 계산 (일지 제외 버그 수정)
+  const roots = s.filter((p,i) => jizhiEls(p.j).includes(dEl));
   const rootCount = roots.length;
 
-  // 2. 도움오행(비겁+인성) 비율
   const helpRatio = (score[biEl] + score[inEl]) / total;
 
-  // 3. 가종격 판별 조건
-  // - 일간 뿌리가 1개 이하
-  // - 도움오행 15~25% (완전 종격 기준 20% 미만보다 조금 넓게)
-  // - 지배오행이 명확히 존재 (>40%)
   const opts = [[sikEl,'종아'],[jaeEl,'종재'],[gwanEl,'종살']];
   opts.sort((a,b) => score[b[0]] - score[a[0]]);
   const [topEl, topType] = opts[0];
   const topRatio = score[topEl] / total;
 
-  // 방해요소: ① 일간을 돕는 천간(비겁·인성) 또는 ② 지지 통근 자체가 방해
   const obstacleGan = s.filter((p,i) => i !== 2 && (GEL[p.g] === biEl || GEL[p.g] === inEl));
-  const hasObstacle = obstacleGan.length > 0 || rootCount >= 1; // 통근 자체도 방해
+  const hasObstacle = obstacleGan.length > 0 || rootCount >= 1;
   const obsNames = obstacleGan.length > 0
     ? obstacleGan.map(p => GH[p.g]).join('·')
     : roots.map(p => JH[p.j] + '통근').join('·');
 
-  // 가종格 성립 조건: 뿌리 극소 + helpRatio 낮음 + 지배오행 명확 + 방해요소 존재
+  // 가종格: 뿌리 극소(1이하) + helpRatio 낮음(10~28%) + 지배오행 명확(38%+)
   if (rootCount <= 1 && helpRatio >= 0.10 && helpRatio <= 0.28 && topRatio >= 0.38 && hasObstacle) {
     return {
-      type: 'GAJONG',
-      name: `가${topType}격(假從格)`,
-      domEl: topEl,
-      obstacleEl: biEl,
-      obstacleGan: obsNames,
-      rootCount,
-      helpRatio,
-      topRatio,
-      yongshinEl: topEl,
-      heeshinEl: SAENG_BY[topEl],
-      gishinEl: biEl,
-      gushinEl: inEl,
+      type: 'GAJONG', name: `가${topType}격(假從格)`, domEl: topEl,
+      obstacleEl: biEl, obstacleGan: obsNames, rootCount, helpRatio, topRatio,
+      yongshinEl: topEl, heeshinEl: SAENG_BY[topEl], gishinEl: biEl, gushinEl: inEl,
       desc: `일간 ${GH[dg]}의 지지 통근이 ${rootCount}개로 극히 미약하고, ` +
             `도움오행(비겁·인성) 비율 ${Math.round(helpRatio*100)}%로 낮아 종격(從格)에 근접합니다. ` +
             `그러나 ${obsNames}이(가) 일간을 부조(扶助)하여 완전한 종(從)을 방해합니다. ` +
@@ -2054,30 +2056,26 @@ function calcGaJong(s, score) {
     };
   }
 
-  // ★ 가종강격·가종약격 추가 ★
-  // 비겁·인성이 강한데 방해요소가 있어 완전한 종강·종약이 안 되는 경우
-  const biRatio2  = score[biEl]  / total;
-  const inRatio2  = score[inEl]  / total;
+  // ★ 가종강格·가종약格: 조건 강화
+  // 신강 사주(50% 이상)를 가종강格으로 오판하지 않도록
+  // helpTotal이 실제로 종强 영역(종강格 기준 55%+)에 가까울 때만 적용
+  // 단 뿌리가 1개 이하이고 방해요소가 있어 완전 종강이 안 되는 경우
+  const biRatio2  = score[biEl] / total;
+  const inRatio2  = score[inEl] / total;
   const helpTotal = biRatio2 + inRatio2;
 
-  if(rootCount <= 1 && helpTotal >= 0.38 && helpTotal <= 0.65 && hasObstacle){
+  // ★ 핵심 조건 강화: rootCount <= 1 AND helpTotal >= 0.55 (종강格 수준)
+  // 기존 0.38 기준은 일반 신강(50%+)도 걸러버림 → 0.55로 상향
+  if(rootCount <= 1 && helpTotal >= 0.55 && helpTotal <= 0.75 && hasObstacle){
     const isStrong = biRatio2 >= inRatio2;
     const jongType = isStrong ? '가종강격(假從强格)' : '가종약격(假從弱格)';
     const domEl2   = isStrong ? biEl : inEl;
-    const obsEl2   = isStrong ? jaeEl : jaeEl; // 재성이 방해
     return {
-      type: 'GAJONG',
-      name: jongType,
-      domEl: domEl2,
-      obstacleEl: obsEl2,
-      obstacleGan: obsNames,
-      rootCount,
-      helpRatio,
+      type: 'GAJONG', name: jongType, domEl: domEl2,
+      obstacleEl: jaeEl, obstacleGan: obsNames, rootCount, helpRatio,
       topRatio: helpTotal,
-      yongshinEl: domEl2,
-      heeshinEl: isStrong ? inEl : biEl,
-      gishinEl: jaeEl,
-      gushinEl: sikEl,
+      yongshinEl: domEl2, heeshinEl: isStrong ? inEl : biEl,
+      gishinEl: jaeEl, gushinEl: sikEl,
       desc: `일간 ${GH[dg]}의 지지 통근이 ${rootCount}개로 미약하고, ` +
             `${isStrong?'비겁':'인성'} 오행이 ${Math.round((isStrong?biRatio2:inRatio2)*100)}%로 강합니다. ` +
             `종${isStrong?'강':'약'}격에 근접하나 ${obsNames}이(가) 방해하여 완전한 종(從)이 불가합니다. ` +
@@ -3438,7 +3436,9 @@ function getStarDesc(starName, palName) {
 
 /* 자미두수 격국 상세 팝업 */
 function showZwGeokDetail(geokIdx) {
-  const g = ZW_GEOKGUK[geokIdx];
+  // window._zwGeokguk는 detectZwGeokguk()가 반환한 판정된 격국 배열
+  const zwGeok = window._zwGeokguk || [];
+  const g = zwGeok[geokIdx];
   if(!g) return;
 
   const existing = document.getElementById('zw-geok-detail');
@@ -4073,9 +4073,7 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
 
   // ★ 비겁 과다 格 보정 ★
   const BIJIP_GEOK = ['월겁격','건록격','양인격'];
-  // geokInfo.name에서 직접 체크 (가장 확실한 방법)
   const isBijipGeok = !!(geokInfo?.name && BIJIP_GEOK.some(g => geokInfo.name.includes(g)));
-  // 또는 비겁 오행 비율이 25% 이상 (기준 낮춤 — 합화로 줄어든 경우 대비)
   const bijipRatio = p(score[biEl]);
   const isBijipOver = bijipRatio >= 25;
 
@@ -4106,9 +4104,7 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
     yEl=cands[0].el;hEl=cands[1].el;gEl=biEl;guEl=inEl;hnEl=cands[2].el;
     desc=`일간 ${GH[dg]}(${ENM[dEl]})이 <strong>${strength}</strong>합니다 (도움오행 ${Math.round(helpRatio*100)}%). ${deulLyeong?'월령 득령으로 뿌리가 튼튼하여':'월령 실령이나 타주 비겁·인성이 과다하여'} 억부가 필요합니다. 일간을 억제·설기하는 <strong>${ENM[yEl]}</strong>이 용신, 비겁(${ENM[biEl]})은 기신, 인성(${ENM[inEl]})은 구신입니다.`;
 
-    // ★ 비겁 과다 格 보정 (isGang에서도 적용) ★
-    // 월겁격·건록격·양인격이거나 비겁 30% 이상이면 비겁이 기신인 건 동일
-    // 신강 사주에서 비겁格이면 비겁을 더 강조해서 경고
+    // ★ 비겁 과다 格 보정 ★
     if(isBijipGeok||isBijipOver){
       desc += ` 비겁(${ENM[biEl]}) 오행이 ${isBijipGeok?'格을 이루거나 ':'' }${bijipRatio}%로 과다하여 비겁이 강해지는 운에서는 에너지 분산과 내적 혼란에 주의하세요.`;
     }
@@ -4818,16 +4814,17 @@ function selectDw(idx){
     window._score = newScore;
     window._dwActivations = activations;
 
-    // ★ 대운별 용신 재계산 ★
-    const newGeok = calcGeokgukAll(s, newScore);
+    // ★ 格局·억부용신은 원국 고정 — 대운이 바뀌어도 불변
+    const origScore = window._origScore || calcOhaeng(s, null);
+    window._origScore = origScore;
+    const newGeok = calcGeokgukAll(s, origScore);
     window._geok  = newGeok;
-
-    const newSg   = calcShinGangYak(s, newScore);
+    const newSg   = calcShinGangYak(s, origScore);
     const isOuter = ['HWA','ILHAENG','JONG','GAJONG'].includes(newGeok.type);
-    window._eokbu = isOuter ? null : calcEokbuYongshin(s, newScore, newSg, newGeok);
+    window._eokbu = isOuter ? null : calcEokbuYongshin(s, origScore, newSg, newGeok);
     window._johu  = calcJohuYongshin(s); // 조후는 원국 고정
 
-    // ★ 대운格 계산 + 전역 저장 ★
+    // ★ 대운格 계산 (대운 방향 분석용 — 5주법 사용)
     window._dwGeok = calcDwGeok(s, d.g, d.j, newScore);
 
     // ★ 오행 차트 아래 대운 오행 변화 안내 표시 ★
@@ -5477,16 +5474,17 @@ function renderZw(zwData, saju, dwArr, sy, sm, sd, sh, gender, origHr){
           const geokHtml = zwGeok.length ? `
             <div style="width:100%;margin-top:10px;border-top:1px solid #ddd;padding-top:10px;">
               <div style="font-size:10px;color:#888;margin-bottom:6px;text-align:center;letter-spacing:0.05em;">자미두수 격국(格局)</div>
-              ${zwGeok.map(g=>{
+              ${zwGeok.map((g,gi)=>{
                 const isGood = g.type==='귀';
                 const gradeColors = {1:'#0e7c6a',2:'#1a5fa8',3:'#b07d1a',4:'#c0392b'};
                 const gradeBg = {1:'#d0f0eb',2:'#d6e4ff',3:'#fff3cd',4:'#fee2e0'};
                 const gradeLabel = {1:'★최귀격',2:'귀격',3:'재물격',4:'흉격'};
                 const color = gradeColors[g.grade];
                 const bg = gradeBg[g.grade];
+                // window._zwGeokguk 배열 내 인덱스(gi)를 직접 사용
                 return `<div style="background:${bg};border:1px solid ${color};border-radius:6px;
                   padding:6px 10px;margin-bottom:5px;cursor:pointer;text-align:left;"
-                  onclick="showZwGeokDetail(${ZW_GEOKGUK.indexOf(g)})">
+                  onclick="showZwGeokDetail(${gi})">
                   <div style="display:flex;align-items:center;justify-content:space-between;">
                     <span style="font-family:'Noto Serif KR',serif;font-size:12px;font-weight:700;color:${color};">
                       ${isGood?'✨':'⚠'} ${g.name}
@@ -6235,8 +6233,10 @@ function generate(){
   const cy = new Date().getFullYear();
   const curDw = dwArr.find(d=>cy>=d.sy&&cy<d.sy+10)||dwArr[0];
 
-  // 대운 통합 오행 계산 (5주법)
+  // 대운 통합 오행 계산 (5주법) — 오행차트·세운스코어링용
   const { score, activations } = calcOhaengWithDW(s, curDw.g, curDw.j);
+  // 원국 오행 — 格局·억부용신 판정 전용
+  const origScore = calcOhaeng(s, null);
 
   if (calType==='lunar'){
     const note=info._yaJasi?' (야자시 적용)':info._joJasi?' (조자시 적용)':'';
@@ -6248,23 +6248,25 @@ function generate(){
 
   renderMs(s);
   renderDw(dwArr);
-  renderOh(score);
+  renderOh(score); // 오행차트는 5주법
   // 전역 변수 저장
-  window._geok = calcGeokgukAll(s, score);
-  window._score = score;
-  // 조후용신·억부용신도 전역 저장 (세운 스코어링 연동용)
+  // ★ 格局·억부는 원국 기준으로 — 대운이 바뀌어도 격국은 불변
+  window._geok = calcGeokgukAll(s, origScore);
+  window._origScore = origScore;
+  window._score = score; // 5주법 (세운 스코어링용)
+  // 조후용신·억부용신도 원국 기준
   window._johu = calcJohuYongshin(s);
-  const _sg = calcShinGangYak(s, score);
+  const _sg = calcShinGangYak(s, origScore);
   const _isOuter = ['HWA','ILHAENG','JONG','GAJONG'].includes(window._geok.type);
-  window._eokbu = _isOuter ? null : calcEokbuYongshin(s, score, _sg, window._geok);
+  window._eokbu = _isOuter ? null : calcEokbuYongshin(s, origScore, _sg, window._geok);
   window._saju = s;
   window._gender = g;
   window._birthYear = y;
   window._zwSeunYear = new Date().getFullYear();
   window._zwLayer = 'bon';
   renderZw(zp, s, dwArr, sol.y, sol.m, sol.d, parseInt(adjustedHrVal)||0, g, parseInt(hrVal)||0);
-  renderYongshin(s, score, curDw, activations);
-  renderSy(s, dwArr, zp.palaces||[], score, g, y);
+  renderYongshin(s, origScore, curDw, activations); // 用神탭도 원국 기준
+  renderSy(s, dwArr, zp.palaces||[], origScore, g, y);
   // 삼층 명반 초기화
   setTimeout(()=>{ switchZwLayer('bon', document.getElementById('zw-tab-bon')); }, 100);
   document.getElementById('result').style.display = 'block';
@@ -6583,18 +6585,63 @@ function interpretGanByeon(g1, g2, rel, str1, str2, dg, allJi, lbl1, lbl2, yongs
     const giverSS=getSS_(dg,giver), receiverSS=getSS_(dg,receiver);
     const isDgReceiver = receiver===dg;
     const isDgGiver    = giver===dg;
+
+    // ★ 신강/신약 맥락 가져오기
+    const _eokbu = window._eokbu || null;
+    const _geok  = window._geok  || null;
+    let yEl_ctx = _eokbu?.yongshinEl ?? _geok?.yongshinEl ?? null;
+    let gEl_ctx = _eokbu?.gishinEl  ?? _geok?.gishinEl  ?? null;
+    const isGangSaju = yongshinInfo && gEl_ctx !== null && GEL[dg] === gEl_ctx;
+    // 신강 사주 = 기신이 비겁(일간과 같은 오행)
+
     if(isDgReceiver && giverStr>=1) {
-      const base={score:1,desc:`${giverSS}(${GH[giver]})이 일간을 생해주어 힘이 강해집니다. 귀인·지원자 에너지가 활성화되는 구조입니다.`,color:'#0e7c6a'};
+      // 인성·비겁이 일간을 생함
+      // 신강 사주에서 일간이 더 강해지는 것은 오히려 불리
+      const giverEl = GEL[giver];
+      const isGiverYong = yEl_ctx !== null && giverEl === yEl_ctx;
+      const isGiverGi   = gEl_ctx !== null && giverEl === gEl_ctx;
+      let baseScore = 1;
+      let baseDesc = `${giverSS}(${GH[giver]})이 일간을 생해주어 힘이 강해집니다. 귀인·지원자 에너지가 활성화됩니다.`;
+      // 신강 사주에서 인성·비겁이 일간 추가 생조 → 과부하
+      if(isGiverGi || (!isGiverYong && isGangSaju && (giverSS==='正印'||giverSS==='偏印'||giverSS==='比肩'||giverSS==='劫財'))) {
+        baseScore = -1;
+        baseDesc = `신강 사주에서 ${giverSS}(${GH[giver]})이 일간을 추가로 생하면 오히려 과부하가 됩니다. 이미 강한 일간을 더 강화해 균형이 더 무너집니다.`;
+      }
+      const base={score:baseScore,desc:baseDesc,color:baseScore>0?'#0e7c6a':'#b07d1a'};
       const adj=yongshinAdjust(GEL[giver],GEL[receiver],base.score,base.desc,base.color);
       return {...adj,label:`${GH[giver]}→${GH[receiver]} 생조`,cats:['CAREER']};
     }
+
     if(isDgGiver && receiverStr>=1) {
-      const base={score:-1,desc:`일간이 ${receiverSS}(${GH[receiver]})을 생하여 에너지가 빠져나갑니다. 표현·활동은 활발하지만 체력 소모가 큰 해입니다.`,color:'#b07d1a'};
+      // 일간이 식상·재성을 생함 = 설기
+      // ★ 신강 사주에서 설기(식상·재성)는 용신 작동 → 좋음
+      const receiverEl = GEL[receiver];
+      const isReceiverYong = yEl_ctx !== null && receiverEl === yEl_ctx;
+      const isReceiverHee  = _eokbu?.heeshinEl !== undefined && receiverEl === _eokbu.heeshinEl;
+      const isReceiverGi   = gEl_ctx !== null && receiverEl === gEl_ctx;
+
+      let baseScore, baseDesc;
+      if(isReceiverYong || isReceiverHee || isGangSaju) {
+        // 신강 사주에서 설기 = 과다 에너지 발산 = 좋음
+        baseScore = 1;
+        baseDesc = `신강 사주에서 일간이 ${receiverSS}(${GH[receiver]})을 생하는 설기(洩氣)는 과다한 기운을 발산하는 용신 작동입니다. 활발한 표현·활동·성취로 이어집니다.`;
+      } else if(isReceiverGi) {
+        baseScore = -1;
+        baseDesc = `일간이 기신 오행(${GH[receiver]})을 생하여 기신을 강화합니다. 에너지가 불리한 방향으로 흘러갑니다.`;
+      } else {
+        baseScore = 0;
+        baseDesc = `일간이 ${receiverSS}(${GH[receiver]})을 생합니다. 표현·활동 에너지가 발산됩니다.`;
+      }
+      const base={score:baseScore,desc:baseDesc,color:baseScore>0?'#0e7c6a':baseScore<0?'#c0392b':'#b07d1a'};
       const adj=yongshinAdjust(GEL[giver],GEL[receiver],base.score,base.desc,base.color);
-      return {...adj,label:`${GH[giver]}→${GH[receiver]} 설기`,cats:['HEALTH']};
+      return {...adj,label:`${GH[giver]}→${GH[receiver]} ${baseScore>=0?'설기(유리)':'설기(불리)'}`,cats:['CAREER']};
     }
+
     if(giverStr>=1 && receiverStr>=1) {
-      const base={score:0,desc:`${giverSS}(${GH[giver]})이 ${receiverSS}(${GH[receiver]})을 강화합니다. ${receiverSS} 에너지가 더 강하게 발현될 수 있습니다.`,color:'#1a5fa8'};
+      const receiverEl = GEL[receiver];
+      const isReceiverYong = yEl_ctx !== null && receiverEl === yEl_ctx;
+      const sc = isReceiverYong ? 1 : 0;
+      const base={score:sc,desc:`${giverSS}(${GH[giver]})이 ${receiverSS}(${GH[receiver]})을 강화합니다.${isReceiverYong?' 용신 오행이 강화되어 길합니다.':' '+receiverSS+' 에너지가 더 강하게 발현됩니다.'}`,color:sc>0?'#0e7c6a':'#1a5fa8'};
       const adj=yongshinAdjust(GEL[giver],GEL[receiver],base.score,base.desc,base.color);
       return {...adj,label:`${GH[giver]}→${GH[receiver]} 상생`,cats:[]};
     }
@@ -6608,24 +6655,60 @@ function interpretGanByeon(g1, g2, rel, str1, str2, dg, allJi, lbl1, lbl2, yongs
     const isDgTarget   = target===dg;
     const isDgAttacker = attacker===dg;
 
+    // ★ 신강/신약 맥락
+    const _eokbu2 = window._eokbu || null;
+    const _geok2  = window._geok  || null;
+    let yEl2 = _eokbu2?.yongshinEl ?? _geok2?.yongshinEl ?? null;
+    let gEl2 = _eokbu2?.gishinEl  ?? _geok2?.gishinEl  ?? null;
+    const atkEl = GEL[attacker];
+    const tgtEl = GEL[target];
+
     if(isDgTarget && atkStr>=1) {
-      const base={score:atkStr>=2?-3:-2,desc:`${atkSS}(${GH[attacker]})이 일간을 직접 극합니다. ${atkStr>=2?'강하게 통근하여 극의 강도가 높습니다. 건강·심리·자아 압박이 심해지는 구조입니다.':'중간 강도의 극. 외부 압박이 느껴지지만 버틸 수 있는 수준입니다.'}`,color:'#c0392b'};
-      const adj=yongshinAdjust(GEL[attacker],GEL[target],base.score,base.desc,base.color);
-      return {...adj,label:`${GH[attacker]}극 일간 (${atkStr>=2?'강':'중'}극)`,cats:['HEALTH','CAREER']};
+      // 관살이 일간을 극함
+      // 신강 사주에서 관살의 극 = 억부용신 작동 = 좋음
+      const isAtkYong = yEl2 !== null && atkEl === yEl2;
+      const isAtkHee  = _eokbu2?.heeshinEl !== undefined && atkEl === _eokbu2.heeshinEl;
+      const isGangCtx = gEl2 !== null && GEL[dg] === gEl2; // 비겁이 기신 = 신강
+
+      if(isAtkYong || isAtkHee || isGangCtx) {
+        // 신강 사주에서 관살이 일간 억제 = 용신 작동
+        const sc = isAtkYong ? 2 : 1;
+        const base={score:sc,desc:`신강 사주에서 ${atkSS}(${GH[attacker]})의 극이 과다한 일간 에너지를 억제합니다. ${isAtkYong?'용신 작동으로 균형이 잡히고 사회적 성취가 따릅니다.':'관살이 겁재를 제어하여 혼란이 줄어드는 구조입니다.'}`,color:'#0e7c6a'};
+        const adj=yongshinAdjust(atkEl,tgtEl,base.score,base.desc,base.color);
+        return {...adj,label:`${GH[attacker]}→일간 억제(용신)`,cats:['CAREER']};
+      } else {
+        // 신약 사주에서 관살의 극 = 압박
+        const base={score:atkStr>=2?-3:-2,desc:`${atkSS}(${GH[attacker]})이 일간을 직접 극합니다. ${atkStr>=2?'강하게 통근하여 극의 강도가 높습니다. 건강·심리·자아 압박이 심해지는 구조입니다.':'중간 강도의 극. 외부 압박이 느껴지지만 버틸 수 있는 수준입니다.'}`,color:'#c0392b'};
+        const adj=yongshinAdjust(atkEl,tgtEl,base.score,base.desc,base.color);
+        return {...adj,label:`${GH[attacker]}극 일간 (압박)`,cats:['HEALTH','CAREER']};
+      }
     }
+
     if(isDgAttacker && tgtStr>=1) {
       const isGoodTarget = ['偏財','正財'].includes(tgtSS);
       const base={score:isGoodTarget?1:0,desc:`일간이 ${tgtSS}(${GH[target]})을 제어합니다. ${isGoodTarget?'재물을 내가 통제하는 유리한 구조. 수익 활동에 적극 임할 수 있습니다.':'관성·권위를 내가 억제하는 구조. 독립적으로 움직이기 좋은 해입니다.'}`,color:'#0e7c6a'};
       const adj=yongshinAdjust(GEL[attacker],GEL[target],base.score,base.desc,base.color);
       return {...adj,label:`일간→${GH[target]} 극제`,cats:isGoodTarget?['MONEY']:['CAREER']};
     }
+
     if(atkStr>=1 && tgtStr<1) {
-      const base={score:-1,desc:`${atkSS}(${GH[attacker]})이 ${tgtSS}(${GH[target]})을 압도합니다. ${tgtSS}의 에너지가 약화됩니다.`,color:'#b07d1a'};
-      const adj=yongshinAdjust(GEL[attacker],GEL[target],base.score,base.desc,base.color);
+      // 비일간 천간이 다른 천간을 극 — 대상이 기신이면 좋음
+      const isTgtGi = gEl2 !== null && tgtEl === gEl2;
+      const sc = isTgtGi ? 1 : -1;
+      const base={score:sc,desc:isTgtGi?`${atkSS}(${GH[attacker]})이 기신 오행(${GH[target]})을 극하여 제어합니다. 기신이 약화되는 좋은 구조입니다.`:`${atkSS}(${GH[attacker]})이 ${tgtSS}(${GH[target]})을 압도합니다. ${tgtSS}의 에너지가 약화됩니다.`,color:sc>0?'#0e7c6a':'#b07d1a'};
+      const adj=yongshinAdjust(atkEl,tgtEl,base.score,base.desc,base.color);
       return {...adj,label:`${GH[attacker]}→${GH[target]} 극`,cats:[]};
     }
+
     if(atkStr>=1 && tgtStr>=1) {
-      // 서로 강해 충돌
+      // 두 천간이 강하게 충돌 — 대상이 기신이면 오히려 좋음
+      const isTgtGi = gEl2 !== null && tgtEl === gEl2;
+      const isAtkYong2 = yEl2 !== null && atkEl === yEl2;
+      if(isTgtGi || isAtkYong2) {
+        const base={score:1,desc:`${atkSS}(${GH[attacker]})이 기신 오행(${GH[target]})을 강하게 제어합니다. 기신이 억제되어 오히려 유리한 구조입니다.`,color:'#0e7c6a'};
+        const adj=yongshinAdjust(atkEl,tgtEl,base.score,base.desc,base.color);
+        return {...adj,label:`${GH[attacker]}×${GH[target]} 기신제압`,cats:['CAREER']};
+      }
       return {
         score:-1, label:`${GH[attacker]}×${GH[target]} 극충돌`,
         desc:`${atkSS}(${GH[attacker]})과 ${tgtSS}(${GH[target]})이 강하게 충돌합니다. 두 에너지가 격렬히 부딪혀 불안정한 상태가 됩니다.`,
@@ -7398,29 +7481,37 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
         desc:hyungMsg, color:'#c0392b', cats:[...pillarCats[i], ...(i===2?['RELATION']:[])] });
     }
     if(isYukh_(swJ, p.j)&&!isCh_(swJ,p.j)){
-      const isPos = (p.j===2&&swJ===11)||(p.j===11&&swJ===2);
-      const sc = isPos ? 1 : 0;
-      total += sc;
+      const JJG_H3=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
+        ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
+        ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+      const ganH3=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+      const iljuSS3 = getSS_(dg, ganH3.indexOf(JJG_H3[s[2].j][JJG_H3[s[2].j].length-1]));
+      const isIlji = (i === 2);
 
-      // ★ 일지 합 → 배우자궁 묶임 메시지 ★
-      let hapMsg = isPos ? `寅亥합 — 전문성·배움 활성화, 귀인` : `${JH[p.j]}와 합 — 에너지 결집`;
-      if(i === 2 && !isPos){
-        const JJG_H3=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
-          ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
-          ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
-        const ganH3=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
-        const iljuSS3 = getSS_(dg, ganH3.indexOf(JJG_H3[s[2].j][JJG_H3[s[2].j].length-1]));
+      let sc = 0;
+      let hapMsg = `${JH[p.j]}와 합 — 에너지 결집`;
+
+      if(isIlji) {
+        // 일지가 합에 묶임 → 심신·관계 기반 변질 → -1
+        sc = -1;
         if(['正財','偏財'].includes(iljuSS3)){
-          hapMsg = `일지(배우자·연인 자리)가 합에 묶입니다. 기존 관계의 에너지가 변화하거나, 새로운 인연이 기존 관계를 흔들 수 있는 시기입니다.`;
+          hapMsg = `일지(배우자·연인 자리 ${JH[p.j]})가 세운 ${JH[swJ]}에 합으로 묶입니다. 기존 관계 에너지 변질, 새 인연이 기존 관계를 흔들 수 있는 시기. 심신 기반 불안정.`;
           cats.add('RELATION');
-        } else if(['正官','偏官'].includes(iljuSS3)){
-          hapMsg = `일지(배우자·직장 자리)가 합에 묶입니다. 관계나 직업 에너지에 변화가 옵니다.`;
-          cats.add('RELATION');
+        } else {
+          hapMsg = `일지(심신 기반 ${JH[p.j]})가 세운 ${JH[swJ]}에 합으로 묶입니다. 뜻대로 안 되는 답답함, 심신 에너지 변질 시기.`;
+          cats.add('HEALTH');
         }
+      } else if((p.j===2&&swJ===11)||(p.j===11&&swJ===2)) {
+        // 寅亥합 (일지 아닌 자리) — 귀인·전문성 효과 +1
+        sc = 1;
+        hapMsg = `寅亥합 — 전문성·배움 활성화, 귀인 등장 가능`;
       }
-      if(sc!==0||isPos||i===2){
+
+      total += sc;
+      if(sc!==0||isIlji){
         details.push({ label:pillarNames[i]+'지합', score:sc,
-          desc:hapMsg, color:'#1a5fa8', cats:[...pillarCats[i],...(i===2?['RELATION']:[])] });
+          desc:hapMsg, color:sc<0?'#c0392b':'#1a5fa8',
+          cats:[...pillarCats[i],...(isIlji?['RELATION','HEALTH']:[])] });
       }
     }
   });
@@ -7435,6 +7526,39 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
     details.push({ label:'대운지지충', score:sc,
       desc: isDwBad ? '나쁜 대운 기반 붕괴 → 억눌린 에너지 해방!' : '대운 에너지 불안정',
       color: isDwBad?'#0e7c6a':'#b07d1a', cats:[isDwBad?'CAREER':'HEALTH'] });
+  }
+
+  /* ③-1 파살(破) 체크 — 대운지지 × 세운지지 */
+  // 子酉破, 午卯破, 寅亥破, 辰丑破, 巳申破, 戌未破
+  const PASA_PAIRS = [[0,9],[6,3],[2,11],[4,1],[5,8],[10,7]];
+  if(PASA_PAIRS.some(([a,b])=>(dwJ===a&&swJ===b)||(dwJ===b&&swJ===a))){
+    total += -2; cats.add('CAREER'); cats.add('MONEY');
+    details.push({ label:'대운×세운 파살(破)', score:-2,
+      desc:`대운 지지 ${JH[dwJ]}와 세운 지지 ${JH[swJ]}이 파살(破)을 이룹니다. 준비해온 일이 갑자기 틀어지거나, 믿었던 사람·상황이 예상 밖으로 무너지는 패턴이 나타납니다.`,
+      color:'#c0392b', cats:['CAREER','MONEY'] });
+  }
+
+  /* ③-2 수다목표(水多木漂) / 화다목분(火多木焚) 보정
+     乙·甲 일간에서 수기(水) 또는 화기(火)가 특정 조건 이상이면
+     인성(正印/偏印)이 오히려 흉으로 작동 */
+  {
+    const dgEl_ = GEL[dg];
+    // 목(木) 일간에서만 적용
+    if(dgEl_ === 0) {
+      const allGanJi = [...s.map(p=>p.g), dwG, swG, ...s.map(p=>p.j), dwJ, swJ];
+      const waterCount = allGanJi.filter(x => (x < 10 ? GEL[x] : JEL[x-10]) === 4).length;
+      const fireCount  = allGanJi.filter(x => (x < 10 ? GEL[x] : JEL[x-10]) === 1).length;
+      // 세운 천간이 水(壬癸)이고 이미 水가 4개 이상이면 수다목표
+      const swGEl_ = GEL[swG];
+      const allJiOnly = [...s.map(p=>p.j), dwJ, swJ];
+      const waterJiCnt = allJiOnly.filter(j=>[0,1,11].includes(j)).length; // 子丑亥
+      if(swGEl_===4 && waterJiCnt >= 2) {
+        total += -2; cats.add('HEALTH'); cats.add('CAREER');
+        details.push({ label:'수다목표(水多木漂)', score:-2,
+          desc:`木 일간에 水(인성) 기운이 지나치게 많아집니다. 인성이 오히려 흉으로 작동 — 방향 상실감, 의욕 저하, 무기력증. 水가 많으면 나무 뿌리가 뽑혀 표류합니다.`,
+          color:'#c0392b', cats:['HEALTH','CAREER'] });
+      }
+    }
   }
 
   /* ④ 삼형(三刑) 완성 체크 */
