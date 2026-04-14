@@ -7317,13 +7317,12 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   const pillarCats  = [['FAMILY'],['CAREER'],['HEALTH','RELATION'],['CAREER']];
 
   s.forEach((p,i)=>{
-    const weight = [1,2,3,2][i]; // 연·월·일·시 가중치 (일지 최강)
+    const weight = [1,2,3,2][i];
     if(isCh_(swJ, p.j)){
       const sc = -(weight);
       total += sc;
       cats.add(pillarCats[i][0]);
 
-      // ★ 충받는 지지의 십성으로 보편적 의미 해석 ★
       const JJG_H=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
         ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
         ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
@@ -7331,7 +7330,6 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
       const repGanIdx = ganH.indexOf(JJG_H[p.j][JJG_H[p.j].length-1]);
       const chungSS = getSS_(dg, repGanIdx);
 
-      // 충받는 지지의 십성별 추가 메시지
       const chungMsg = {
         '正印': '나를 지지·보살펴주던 사람이나 환경이 흔들리는 시기입니다. 귀인·후원자·가족 관련 이슈에 주의하세요.',
         '偏印': '믿었던 정보나 직관이 흔들리는 시기입니다. 섣부른 판단과 계획 변경을 삼가세요.',
@@ -7345,25 +7343,78 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
         '劫財': '주변의 에너지 소모와 재물 분산이 일어나기 쉬운 시기입니다.',
       }[chungSS] || '이 자리의 에너지 기반이 흔들리는 시기입니다.';
 
+      // ★ 일지 십성 기반 배우자·연인 관련 추가 메시지 ★
+      let relationMsg = '';
+      if(i === 2){ // 일지인 경우만
+        const iljuSS = getSS_(dg, ganH.indexOf(JJG_H[s[2].j][JJG_H[s[2].j].length-1]));
+        const swGSS2 = getSS_(dg, swG);
+        const isGeopJae = ['比肩','劫財'].includes(swGSS2);
+
+        if(['正財','偏財'].includes(iljuSS)){
+          // 일지가 재성 = 배우자·연인 자리
+          if(isGeopJae){
+            // 겁재 세운 + 일지 재성 충 = 제3자 개입
+            relationMsg = ' 💔 일지가 재성(배우자·연인 자리)인데 겁재 세운과 함께 충격을 받습니다. 제3자의 개입이나 경쟁자로 인해 가까운 관계에 균열이 생길 수 있습니다.';
+          } else {
+            relationMsg = ' 💔 일지가 재성(배우자·연인 자리)인데 충격을 받습니다. 가까운 관계나 파트너십에 변화·균열이 올 수 있는 시기입니다.';
+          }
+          cats.add('RELATION');
+        } else if(['正官','偏官'].includes(iljuSS)){
+          // 일지가 관성 = 배우자 자리 (여성의 경우)
+          relationMsg = ' 💔 일지가 관성(배우자·남편 자리)에 충격이 옵니다. 가까운 관계나 직장 상사와의 갈등에 주의하세요.';
+          cats.add('RELATION');
+        }
+      }
+
       details.push({ label:pillarNames[i]+'지충', score:sc,
-        desc:`${JH[p.j]}(${pillarNames[i]}주) 직접 충격 — ${chungMsg}`,
-        color:'#c0392b', cats:pillarCats[i] });
+        desc:`${JH[p.j]}(${pillarNames[i]}주) 직접 충격 — ${chungMsg}${relationMsg}`,
+        color:'#c0392b', cats:[...pillarCats[i], ...(relationMsg?['RELATION']:[])] });
     }
     if(isHyung_(swJ, p.j)){
       const sc = -(weight-1||1);
       total += sc;
       cats.add(pillarCats[i][0]);
+
+      // ★ 형살도 일지 십성 기반 세분화 ★
+      let hyungMsg = `${JH[p.j]}(${pillarNames[i]}주)와 형살 — 집중력·판단 오류`;
+      if(i === 2){
+        const JJG_H2=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
+          ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
+          ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+        const ganH2=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+        const iljuSS2 = getSS_(dg, ganH2.indexOf(JJG_H2[s[2].j][JJG_H2[s[2].j].length-1]));
+        if(['正財','偏財'].includes(iljuSS2)){
+          hyungMsg += ' 💔 일지가 재성 자리로, 가까운 관계나 파트너십에 예상치 못한 갈등이 생길 수 있습니다.';
+          cats.add('RELATION');
+        }
+      }
       details.push({ label:pillarNames[i]+'지형', score:sc,
-        desc:`${JH[p.j]}(${pillarNames[i]}주)와 형살 — 집중력·판단 오류`, color:'#c0392b', cats:pillarCats[i] });
+        desc:hyungMsg, color:'#c0392b', cats:[...pillarCats[i], ...(i===2?['RELATION']:[])] });
     }
     if(isYukh_(swJ, p.j)&&!isCh_(swJ,p.j)){
-      const isPos = (p.j===2&&swJ===11)||(p.j===11&&swJ===2); // 寅亥합 = 전문성
+      const isPos = (p.j===2&&swJ===11)||(p.j===11&&swJ===2);
       const sc = isPos ? 1 : 0;
       total += sc;
-      if(sc!==0||isPos){
+
+      // ★ 일지 합 → 배우자궁 묶임 메시지 ★
+      let hapMsg = isPos ? `寅亥합 — 전문성·배움 활성화, 귀인` : `${JH[p.j]}와 합 — 에너지 결집`;
+      if(i === 2 && !isPos){
+        const JJG_H3=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
+          ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
+          ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+        const ganH3=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+        const iljuSS3 = getSS_(dg, ganH3.indexOf(JJG_H3[s[2].j][JJG_H3[s[2].j].length-1]));
+        if(['正財','偏財'].includes(iljuSS3)){
+          hapMsg = `일지(배우자·연인 자리)가 합에 묶입니다. 기존 관계의 에너지가 변화하거나, 새로운 인연이 기존 관계를 흔들 수 있는 시기입니다.`;
+          cats.add('RELATION');
+        } else if(['正官','偏官'].includes(iljuSS3)){
+          hapMsg = `일지(배우자·직장 자리)가 합에 묶입니다. 관계나 직업 에너지에 변화가 옵니다.`;
+          cats.add('RELATION');
+        }
+      }
+      if(sc!==0||isPos||i===2){
         details.push({ label:pillarNames[i]+'지합', score:sc,
-          desc: isPos?`寅亥합 — 전문성·배움 활성화, 귀인`:`${JH[p.j]}와 합 — 에너지 결집`,
-          color:'#1a5fa8', cats:pillarCats[i] });
+          desc:hapMsg, color:'#1a5fa8', cats:[...pillarCats[i],...(i===2?['RELATION']:[])] });
       }
     }
   });
@@ -7445,17 +7496,28 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   {
     const swGSS = getSS_(dg, swG);
     const swJEl2 = JEL[swJ];
-    // 세운 천간이 겁재인 해 → 재성(偏財·正財) 오행이 지지에 있으면 경고
-    const jaeEl  = (dgEl+2)%5; // 재성 오행
-    const biGEl  = dgEl;       // 비겁 오행 (겁재도 같은 오행)
+    const jaeEl  = (dgEl+2)%5;
     const hasJaeInJi = [...s.map(p=>p.j),dwJ,swJ].some(j=>JEL[j]===jaeEl);
+
+    // 일지가 재성인지 체크 (배우자궁 = 재성)
+    const JJG_H9=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
+      ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
+      ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+    const ganH9=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+    const iljuSS9 = getSS_(dg, ganH9.indexOf(JJG_H9[s[2].j][JJG_H9[s[2].j].length-1]));
+    const isIljuJae = ['正財','偏財'].includes(iljuSS9);
+
     if(swGSS==='劫財' && hasJaeInJi){
+      // ★ 일지가 재성이면 배우자 관계 추가 경고 ★
+      const extraMsg = isIljuJae
+        ? ' 특히 일지가 배우자·연인 자리(재성)여서 가까운 관계에 제3자의 개입이나 경쟁자가 나타날 수 있습니다.'
+        : '';
       total += -1; cats.add('MONEY');
+      if(isIljuJae) cats.add('RELATION');
       details.push({ label:'겁재·재물 분산', score:-1,
-        desc:'경쟁자·동업자·주변인과의 재물 마찰이 생기기 쉬운 해입니다. 사업·투자·동업 시 신중하게 검토하고 계약 관계를 명확히 하세요.',
-        color:'#c0392b', cats:['MONEY'] });
+        desc:`경쟁자·동업자·주변인과의 재물 마찰이 생기기 쉬운 해입니다. 사업·투자·동업 시 신중하게 검토하고 계약 관계를 명확히 하세요.${extraMsg}`,
+        color:'#c0392b', cats:isIljuJae?['MONEY','RELATION']:['MONEY'] });
     }
-    // 세운 천간이 비견인 해 + 재성 지지 = 에너지 분산 경고
     if(swGSS==='比肩' && hasJaeInJi){
       total += 0; cats.add('MONEY');
       details.push({ label:'비견·재물 경쟁', score:0,
