@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>사주 & 자미두수 명반</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500&family=Playfair+Display:wght@200;300;400&display=swap" rel="stylesheet"/>
+<!-- 귀格 DB (작아서 미리 로드) -->
+<script src="db/db_guigyeok.js"></script>
 <style>
 :root{
   --bg:#f4f6fb;--bg2:#ffffff;--bg3:#eef1f8;
@@ -4872,6 +4874,55 @@ function toggleLeap() {
 }
 
 // 군시차 적용 진시 안내 (실시간 표시)
+/* ═══ 일주별 DB 동적 로딩 ═══ */
+const _ILJU_DB_LOADED = {};
+
+// 일주 한자 → 영문 파일명 매핑
+const ILJU_FILE_MAP = {
+  '甲戌':'Gap_Sul', '乙亥':'Eul_Hae', '丙子':'Byeong_Ja', '丁丑':'Jeong_Chuk',
+  '戊寅':'Mu_In',  '己卯':'Gi_Myo',  '庚辰':'Gyeong_Jin', '辛巳':'Sin_Sa',
+  '壬午':'Im_O',   '癸未':'Gye_Mi',
+  // 2라인 (甲子~癸酉)
+  '甲子':'Gap_Ja',  '乙丑':'Eul_Chuk', '丙寅':'Byeong_In', '丁卯':'Jeong_Myo',
+  '戊辰':'Mu_Jin',  '己巳':'Gi_Sa',    '庚午':'Gyeong_O',  '辛未':'Sin_Mi',
+  '壬申':'Im_Sin',  '癸酉':'Gye_Yu',
+  // 3라인 (甲申~癸巳)
+  '甲申':'Gap_Sin', '乙酉':'Eul_Yu',   '丙戌':'Byeong_Sul','丁亥':'Jeong_Hae',
+  '戊子':'Mu_Ja',   '己丑':'Gi_Chuk',  '庚寅':'Gyeong_In', '辛卯':'Sin_Myo',
+  '壬辰':'Im_Jin',  '癸巳':'Gye_Sa',
+  // 4라인 (甲辰~癸丑)
+  '甲辰':'Gap_Jin', '乙巳':'Eul_Sa',   '丙午':'Byeong_O',  '丁未':'Jeong_Mi',
+  '戊申':'Mu_Sin',  '己酉':'Gi_Yu',    '庚戌':'Gyeong_Sul','辛亥':'Sin_Hae',
+  '壬子':'Im_Ja',   '癸丑':'Gye_Chuk',
+  // 5라인 (甲午~癸卯)
+  '甲午':'Gap_O',   '乙未':'Eul_Mi',   '丙申':'Byeong_Sin','丁酉':'Jeong_Yu',
+  '戊戌':'Mu_Sul',  '己亥':'Gi_Hae',   '庚子':'Gyeong_Ja', '辛丑':'Sin_Chuk',
+  '壬寅':'Im_In',   '癸卯':'Gye_Myo',
+  // 6라인 (甲寅~癸亥)
+  '甲寅':'Gap_In',  '乙卯':'Eul_Myo',  '丙辰':'Byeong_Jin','丁巳':'Jeong_Sa',
+  '戊午':'Mu_O',    '己未':'Gi_Mi',    '庚申':'Gyeong_Sin','辛酉':'Sin_Yu',
+  '壬戌':'Im_Sul',  '癸亥':'Gye_Hae',
+};
+
+function loadIljuDB(dayGan, dayJi, callback) {
+  const GAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const JI  = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const ilju = GAN[dayGan] + JI[dayJi];
+  const engName = ILJU_FILE_MAP[ilju];
+
+  // 이미 로드됨
+  if(_ILJU_DB_LOADED[ilju]) { callback(); return; }
+
+  // 지원하는 일주 아님
+  if(!engName) { callback(); return; }
+
+  const script = document.createElement('script');
+  script.src = `db/db_ilju_${engName}.js`;
+  script.onload = () => { _ILJU_DB_LOADED[ilju] = true; callback(); };
+  script.onerror = () => { console.warn(`DB 로드 실패: ${ilju}`); callback(); };
+  document.head.appendChild(script);
+}
+
 function generate(){
   const y   = parseInt(document.getElementById('yr').value) || 1990;
   const m   = parseInt(document.getElementById('mo').value) || 1;
@@ -4969,10 +5020,21 @@ function generate(){
   renderZw(zp, s, dwArr, sol.y, sol.m, sol.d, parseInt(adjustedHrVal)||0, g, parseInt(hrVal)||0);
   renderYongshin(s, score, curDw, activations);
   renderSy(s, dwArr, zp.palaces||[], score, g, y);
-  // 삼층 명반 초기화 (본명반으로 시작)
+  // 삼층 명반 초기화
   setTimeout(()=>{ switchZwLayer('bon', document.getElementById('zw-tab-bon')); }, 100);
   document.getElementById('result').style.display = 'block';
   document.getElementById('result').scrollIntoView({behavior:'smooth', block:'start'});
+
+  // 일주 DB 동적 로딩 (백그라운드)
+  loadIljuDB(s[2].g, s[2].j, ()=>{
+    // 로드 완료 후 세운 패널이 열려있으면 갱신
+    const detailEl = document.getElementById('sw-detail');
+    if(detailEl && detailEl.innerHTML.trim() &&
+       !detailEl.innerHTML.includes('세운을 클릭하면')) {
+      // 현재 표시 중인 세운 정보 갱신 — 딱히 할 것 없음 (클릭 시 자동 반영)
+    }
+    console.log(`✅ 일주 DB 로드 완료: ${['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][s[2].g]}${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][s[2].j]}`);
+  });
 }
 /* ═══════════════════════════════════════════════════════════════
    세운(歲運) 스코어링 엔진
@@ -6187,6 +6249,55 @@ function renderSwScore(year, s, dwG, dwJ) {
 
     <!-- 월운 상세 (클릭 시) -->
     <div id="month-detail" style="padding:0 16px;max-height:0;overflow:hidden;transition:max-height 0.3s;"></div>
+
+    <!-- 일주×월지×시간 상세 풀이 (DB 연동) -->
+    ${(()=>{
+      if(typeof ILJU_DETAIL_DB === 'undefined') return '';
+      const dg=s[2].g, dj=s[2].j, mj=s[1].j, hg=s[3].g, hj=s[3].j;
+      const detail = getDetailPuri(dg, dj, mj, hg, hj);
+      if(!detail) return '';
+      const GAN_NM=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+      const JI_NM=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+      const MON_NM=['子月','丑月','寅月','卯月','辰月','巳月','午月','未月','申月','酉月','戌月','亥月'];
+      const iljuKey = `${GAN_NM[dg]}${JI_NM[dj]}-${MON_NM[mj]}-${GAN_NM[hg]}${JI_NM[hj]}時`;
+
+      const sections = [
+        {key:'기질', icon:'🧬', label:'기질·본성', color:'#0f2556'},
+        {key:'성격심리', icon:'🧠', label:'성격·심리', color:'#1a5fa8'},
+        {key:'직업', icon:'💼', label:'직업·적성', color:'#0e7c6a'},
+        {key:'재물', icon:'💰', label:'재물·사업', color:'#b07d1a'},
+        {key:'관계결혼', icon:'❤️', label:'관계·결혼', color:'#8e44ad'},
+        {key:'건강', icon:'🏥', label:'건강', color:'#c0392b'},
+        {key:'대운흐름', icon:'🌊', label:'대운 흐름', color:'#1a5fa8'},
+        {key:'인생테마', icon:'⭐', label:'인생 테마', color:'#0e7c6a'},
+      ];
+
+      const sectHtml = sections.filter(sec=>detail[sec.key]).map(sec=>`
+        <details style="border-bottom:1px solid var(--bd);">
+          <summary style="padding:10px 0;cursor:pointer;display:flex;align-items:center;gap:8px;list-style:none;
+            font-size:13px;font-weight:600;color:${sec.color};">
+            <span>${sec.icon}</span>
+            <span>${sec.label}</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--text3);">▼</span>
+          </summary>
+          <div style="padding:0 0 12px 26px;font-size:13px;color:var(--text2);line-height:1.85;
+            white-space:pre-wrap;">${detail[sec.key]}</div>
+        </details>`).join('');
+
+      return `
+        <div style="padding:12px 16px;border-top:2px solid var(--navy);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="font-size:16px;">📖</span>
+            <div>
+              <div style="font-family:'Noto Serif KR',serif;font-size:13px;font-weight:700;color:var(--navy);">
+                일주 × 월지 × 시간 상세 풀이
+              </div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;">${iljuKey}</div>
+            </div>
+          </div>
+          ${sectHtml}
+        </div>`;
+    })()}
 
   </div>`;
 }
