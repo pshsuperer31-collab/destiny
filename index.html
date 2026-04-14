@@ -3624,6 +3624,41 @@ function getStarDesc(starName, palName) {
 }
 
 /* 자미두수 격국 상세 팝업 */
+function showSihuaDesc(type) {
+  const map = window._sihuaDescMap || {
+    '化祿': { label:'화록(化祿)', color:'#cc0000', bg:'#fff5f5', desc:'화록은 풍요·재물·기회를 나타내는 길한 사화입니다. 화록이 있는 궁에서 물질적 혜택과 좋은 인연이 흘러옵니다.' },
+    '化權': { label:'화권(化權)', color:'#0000cc', bg:'#f0f0ff', desc:'화권은 권력·리더십·결단을 나타냅니다. 화권이 있는 궁에서 강한 주도권과 추진력이 발휘됩니다.' },
+    '化科': { label:'화과(化科)', color:'#006600', bg:'#f0fff0', desc:'화과는 명예·학문·귀인·사회적 인정을 나타냅니다. 화과가 있는 궁에서 좋은 평판과 귀인의 도움이 따릅니다.' },
+    '化忌': { label:'화기(化忌)', color:'#c0392b', bg:'#fff8f0', desc:'화기는 시련·장애·집착을 나타내는 사화입니다. 화기가 있는 궁에서 걸림돌이나 어려움이 생기기 쉽습니다. 그러나 집중력과 인내로 오히려 성취를 이룰 수 있습니다.' },
+  };
+  const info = map[type];
+  if(!info) return;
+  const existing = document.getElementById('zw-sihua-popup');
+  if(existing) existing.remove();
+  const html = `
+    <div id="zw-sihua-popup"
+      style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);
+      z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;"
+      onclick="if(event.target===this)this.remove()">
+      <div style="background:#fff;border-radius:16px;max-width:400px;width:100%;
+        box-shadow:0 8px 32px rgba(0,0,0,0.25);overflow:hidden;">
+        <div style="background:${info.color};padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-family:'Noto Serif KR',serif;font-size:20px;font-weight:700;color:#fff;">${type}</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:2px;">${info.label}</div>
+          </div>
+          <button onclick="document.getElementById('zw-sihua-popup').remove()"
+            style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:28px;height:28px;
+            border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <div style="padding:20px;background:${info.bg};">
+          <p style="font-size:14px;line-height:1.8;color:#333;margin:0;">${info.desc}</p>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
 function showZwGeokDetail(geokIdx) {
   // window._zwGeokguk는 detectZwGeokguk()가 반환한 판정된 격국 배열
   const zwGeok = window._zwGeokguk || [];
@@ -4065,9 +4100,19 @@ function calcNaeGyeok(s,score){
 
   // 2) 월지가 충을 받으면 格의 뿌리가 흔들림 → 파격
   const jiList = s.map(p=>p.j);
-  const mJiChung = [0,6,3,9,1,7,4,10,2,8,5,11]; // 각 지지의 충 대상
+  // 子午丑未寅申卯酉辰戌巳亥 충 관계 — 올바른 배열
+  const mJiChung = [6,7,8,9,10,11,0,1,2,3,4,5]; // index=지지, value=충대상
   const mJiChungTarget = mJiChung[mJi];
   const pagyeok_mji_chung = jiList.some((j,i)=>i!==1 && j===mJiChungTarget);
+
+  // 2-1) ★ 전충(全冲) 감지 — 모든 지지가 충에 연루될 때
+  // 전충: 원국 4개 지지가 2쌍의 충으로 이루어진 경우 (최악의 파격)
+  let jeonChungCount = 0;
+  const CHUNG_PAIRS = [[0,6],[1,7],[2,8],[3,9],[4,10],[5,11]];
+  for(const [a,b] of CHUNG_PAIRS){
+    if(jiList.includes(a)&&jiList.includes(b)) jeonChungCount++;
+  }
+  const isJeonChung = jeonChungCount >= 2; // 2쌍 이상 충 = 전충
 
   // 3) 투출된 格 천간이 충극을 받으면 파격
   // 格 오행을 극하는 천간이 천간에 있고, 그 天干이 통근하면 파격
@@ -4111,6 +4156,8 @@ function calcNaeGyeok(s,score){
   if(pagyeok_basic)            geokStrength -= 15; // 格극 천간 존재
   if(pagyeok_mji_hap)          geokStrength -= 15; // 월지 합거 → 格 본거지 변질
   if(pagyeok_jajyeong || pagyeok_geok_jajyeong) geokStrength -= 10; // 자형 → 格 에너지 불안정
+  // ★ 전충(全冲) 패널티 — 모든 지지가 충에 연루 → 格이 극도로 불안정
+  if(isJeonChung)              geokStrength -= 20; // 전충 추가 패널티
 
   // ★ 극신약 + 오행 압도 → 格 강도 자동 약화 ★
   // 파격 요인이 없어도 일간이 극신약하고 특정 오행이 압도적이면
@@ -4150,6 +4197,7 @@ function calcNaeGyeok(s,score){
   if(pagyeok_hap)              pagyeokReasons.push('格 천간이 합(合)에 묶여 약화(合去)');
   if(pagyeok_mji_hap)          pagyeokReasons.push('월지가 합(合)에 묶여 格의 본거지 변질');
   if(pagyeok_jajyeong || pagyeok_geok_jajyeong) pagyeokReasons.push('자형(自刑)으로 格 오행 불안정');
+  if(isJeonChung) pagyeokReasons.push('전충(全冲) — 모든 지지가 충에 연루되어 格이 극도로 불안정');
 
   const isPagyeok = pagyeokReasons.length > 0;
   const pagyeokDesc = pagyeokReasons.join(' / ');
@@ -8532,6 +8580,12 @@ function renderZwLayer() {
     const typeColors = {'化祿':'#cc0000','化權':'#0000cc','化科':'#006600','化忌':'#c0392b'};
     const typeLabels = {'化祿':'화록(祿) — 풍요·기회','化權':'화권(權) — 권력·리더십','化科':'화과(科) — 명예·학문','化忌':'화기(忌) — 시련·주의'};
     const typeBg = {'化祿':'#fff5f5','化權':'#f0f0ff','化科':'#f0fff0','化忌':'#fff8f0'};
+    const typeDesc = {
+      '化祿': '화록(化祿)은 풍요·재물·기회·인기를 나타내는 길한 사화입니다. 화록이 붙은 별이 있는 궁에서 물질적 혜택과 좋은 인연이 흘러옵니다. 그 궁의 일이 순탄하게 풀리고 복록이 따릅니다.',
+      '化權': '화권(化權)은 권력·리더십·결단·주도권을 나타냅니다. 화권이 붙은 별이 있는 궁에서 강한 영향력과 추진력이 발휘됩니다. 그 궁의 일을 내가 주도하거나 강하게 컨트롤하게 됩니다.',
+      '化科': '화과(化科)는 명예·학문·귀인·사회적 인정을 나타냅니다. 화과가 붙은 별이 있는 궁에서 좋은 평판과 귀인의 도움이 따릅니다. 시험·자격·명성과 관련된 기회가 생깁니다.',
+      '化忌': '화기(化忌)는 시련·장애·집착·주의를 나타내는 사화입니다. 화기가 붙은 별이 있는 궁에서 걸림돌이나 어려움이 생기기 쉽습니다. 그 궁의 일에 집착하거나 과욕을 부리면 문제가 커집니다. 그러나 화기를 잘 다루면 오히려 집중력과 인내로 성취를 이룰 수 있습니다.',
+    };
     sihuaEl.innerHTML = `
       <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:10px;
         padding:10px 14px;margin-bottom:8px;">
@@ -8539,8 +8593,11 @@ function renderZwLayer() {
           margin-bottom:8px;">${layerLabel} — 사화(四化)</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
           ${ZW_SIHUA_TYPES.map(type=>`
-            <div style="background:${typeBg[type]};border:1px solid ${typeColors[type]}33;
-              border-radius:6px;padding:6px 8px;text-align:center;">
+            <div onclick="showSihuaDesc('${type}')" style="background:${typeBg[type]};border:1px solid ${typeColors[type]}33;
+              border-radius:6px;padding:6px 8px;text-align:center;cursor:pointer;
+              transition:box-shadow 0.15s;"
+              onmouseover="this.style.boxShadow='0 2px 8px ${typeColors[type]}44'"
+              onmouseout="this.style.boxShadow='none'">
               <div style="font-family:'Noto Serif KR',serif;font-size:14px;font-weight:700;
                 color:${typeColors[type]};">${layerSihua[type]}</div>
               <div style="font-size:9px;color:${typeColors[type]};margin-top:2px;
@@ -8549,6 +8606,14 @@ function renderZwLayer() {
             </div>`).join('')}
         </div>
       </div>`;
+
+    // 사화 설명 팝업 함수 (전역)
+    window._sihuaDescMap = {
+      '化祿': { label:'화록(化祿)', color:'#cc0000', bg:'#fff5f5', desc: typeDesc['化祿'] },
+      '化權': { label:'화권(化權)', color:'#0000cc', bg:'#f0f0ff', desc: typeDesc['化權'] },
+      '化科': { label:'화과(化科)', color:'#006600', bg:'#f0fff0', desc: typeDesc['化科'] },
+      '化忌': { label:'화기(化忌)', color:'#c0392b', bg:'#fff8f0', desc: typeDesc['化忌'] },
+    };
   }
 
   // 명반 재렌더링 (층별 궁 이름 + 사화 오버레이)
