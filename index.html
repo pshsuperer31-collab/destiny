@@ -4629,16 +4629,160 @@ function showSwDetail(year, dwG, dwJ){
   const el=document.getElementById('sw-detail');
   if(!el) return;
 
-  // 세운 DB 풀이 추가
-  const dbHtml = renderIljuDetailSection(
-    s[2].g, s[2].j,
-    swJ,
-    s[3].g, s[3].j,
-    '⚡ 세운 상세 풀이',
-    `${year}년 ${GAN_NM[swG]}${JI_NM[swJ]} 세운 · 일주 기반 분석`
-  );
+  // ★ 세운 전용 용신 기반 동적 해석 ★
+  // DB 고정 내용(기질·성격·직업 등) 대신 그 해 운세에 맞춘 동적 해석 생성
+  const swYongshinHtml = (()=>{
+    const geok  = window._geok  || null;
+    const eokbu = window._eokbu || null;
+    const johu  = window._johu  || null;
+    if(!geok && !eokbu) return '';
 
-  el.innerHTML = html + (dbHtml || '');
+    const ENM_S3 = ['木','火','土','金','水'];
+    const ECL_S3 = ['el-wood','el-fire','el-soil','el-gold','el-water'];
+    const GAN_NM2=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+    const JI_NM2 =['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+    // 용신 정보 통합
+    let yEl = geok?.yongshinEl ?? null;
+    let hEl = geok?.heeshinEl  ?? null;
+    let gEl = geok?.gishinEl   ?? null;
+    let qEl = geok?.gushinEl   ?? null;
+    if(yEl==null && eokbu){ yEl=eokbu.yongshinEl; hEl=eokbu.heeshinEl; gEl=eokbu.gishinEl; qEl=eokbu.gushinEl; }
+    const johuYEl = johu?.yongshinEl ?? null;
+
+    const swGEl = GEL[swG];
+    const swJEl = JEL[swJ];
+
+    // 세운 오행의 용신 관계 판정
+    function getYongshinRel(el) {
+      if(yEl!=null && el===yEl) return {lbl:'용신', color:'#0e7c6a', icon:'★'};
+      if(hEl!=null && el===hEl) return {lbl:'희신', color:'#1a5fa8', icon:'◎'};
+      if(gEl!=null && el===gEl) return {lbl:'기신', color:'#c0392b', icon:'✗'};
+      if(qEl!=null && el===qEl) return {lbl:'구신', color:'#b07d1a', icon:'△'};
+      return {lbl:'중립', color:'#5a6a8a', icon:'○'};
+    }
+    const ganRel = getYongshinRel(swGEl);
+    const jiRel  = getYongshinRel(swJEl);
+
+    // 조후용신 일치 여부
+    const johuMatch = johuYEl!=null && (swGEl===johuYEl || swJEl===johuYEl);
+
+    // 영역별 운세 해석 생성
+    function makeAreaDesc(yongshinRel, area) {
+      const isGood = ['용신','희신'].includes(yongshinRel.lbl);
+      const isBad  = ['기신','구신'].includes(yongshinRel.lbl);
+      const descs = {
+        '재물': {
+          '용신': `재물운이 강하게 활성화됩니다. 적극적인 사업·투자 활동에 유리한 시기입니다.`,
+          '희신': `재물 흐름이 순조롭습니다. 꾸준한 수입과 안정적 축적에 좋은 시기입니다.`,
+          '기신': `재물 판단력이 흐려질 수 있습니다. 충동적 투자나 큰 지출은 신중하게 결정하세요.`,
+          '구신': `소소한 재물 손실이 있을 수 있습니다. 불필요한 지출을 줄이는 것이 현명합니다.`,
+          '중립': `재물 흐름은 평범합니다. 꾸준한 노력이 결과로 이어지는 시기입니다.`,
+        },
+        '직업': {
+          '용신': `직업·사업 에너지가 강하게 활성화됩니다. 중요한 결정과 도전에 최적의 시기입니다.`,
+          '희신': `직업 환경이 순조롭습니다. 현재 방향을 유지하면 좋은 결과가 따라옵니다.`,
+          '기신': `직업 환경에 변화와 마찰이 올 수 있습니다. 큰 변화보다 내실을 다지는 시기입니다.`,
+          '구신': `직업적 에너지 소모가 있을 수 있습니다. 무리한 확장보다 현상 유지에 집중하세요.`,
+          '중립': `직업 환경은 평범합니다. 준비한 것을 차분히 실행하는 시기입니다.`,
+        },
+        '건강': {
+          '용신': `심신의 에너지가 충만합니다. 활발한 활동과 새로운 도전에 좋은 시기입니다.`,
+          '희신': `건강 상태가 전반적으로 양호합니다. 규칙적인 생활을 유지하세요.`,
+          '기신': `체력 소모와 스트레스가 높아질 수 있습니다. 충분한 휴식과 건강 관리가 필요합니다.`,
+          '구신': `소소한 건강 이슈가 생길 수 있습니다. 만성 질환이 있다면 정기 검진을 챙기세요.`,
+          '중립': `건강은 평온합니다. 기본 생활 관리로 충분합니다.`,
+        },
+        '관계': {
+          '용신': `인간관계 에너지가 활성화됩니다. 귀인 만남과 협력 기회가 생기는 시기입니다.`,
+          '희신': `인간관계가 순조롭습니다. 기존 관계가 더욱 탄탄해지는 시기입니다.`,
+          '기신': `인간관계에 갈등이나 오해가 생길 수 있습니다. 언행에 신중을 기하세요.`,
+          '구신': `주변과 소소한 마찰이 있을 수 있습니다. 감정적 대응보다 여유를 가지세요.`,
+          '중립': `인간관계는 평온합니다. 꾸준한 신뢰 유지가 중요합니다.`,
+        },
+      };
+      return descs[area]?.[yongshinRel.lbl] || '';
+    }
+
+    // 세운 천간·지지 종합 관계 판단
+    const overallGood = ['용신','희신'].includes(ganRel.lbl) || ['용신','희신'].includes(jiRel.lbl);
+    const overallBad  = ['기신','구신'].includes(ganRel.lbl) && ['기신','구신'].includes(jiRel.lbl);
+    const mainEl = (ganRel.lbl==='용신'||ganRel.lbl==='희신') ? swGEl :
+                   (jiRel.lbl==='용신'||jiRel.lbl==='희신')  ? swJEl : swGEl;
+    const mainRel = getYongshinRel(mainEl);
+
+    // 종합 한 줄 평
+    const summary = overallBad
+      ? `${year}년은 기신·구신 오행이 강화되는 해입니다. 안정과 내실을 최우선으로 삼으세요.`
+      : overallGood
+      ? `${year}년은 용신·희신 오행이 활성화되는 좋은 해입니다. 적극적으로 행동하기 좋은 시기입니다.`
+      : `${year}년은 중립적인 흐름의 해입니다. 차분하게 준비한 것을 실행하세요.`;
+
+    const areas = [
+      {icon:'💰', name:'재물·사업', rel: jiRel.lbl==='용신'||jiRel.lbl==='희신' ? jiRel : ganRel},
+      {icon:'💼', name:'직업·커리어', rel: ganRel.lbl==='용신'||ganRel.lbl==='희신' ? ganRel : jiRel},
+      {icon:'🏥', name:'건강·심신', rel: johuMatch ? {lbl:'희신',color:'#1a5fa8',icon:'◎'} : overallBad ? {lbl:'기신',color:'#c0392b',icon:'✗'} : {lbl:'중립',color:'#5a6a8a',icon:'○'}},
+      {icon:'❤️', name:'관계·인연', rel: overallGood ? {lbl:'희신',color:'#1a5fa8',icon:'◎'} : overallBad ? {lbl:'구신',color:'#b07d1a',icon:'△'} : {lbl:'중립',color:'#5a6a8a',icon:'○'}},
+    ];
+
+    return `
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-top:12px;">
+        <div style="background:linear-gradient(135deg,#7b1fa2 0%,#1a5fa8 100%);padding:12px 16px;">
+          <div style="font-family:'Noto Serif KR',serif;font-size:13px;font-weight:700;color:#fff;">
+            ⚡ ${year}년 용신 기반 운세 해석
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:3px;">
+            ${GAN_NM2[swG]}${JI_NM2[swJ]} 세운 · 용신 <span style="font-weight:700;">${yEl!=null?ENM_S3[yEl]:'—'}</span> / 기신 <span style="font-weight:700;">${gEl!=null?ENM_S3[gEl]:'—'}</span>
+          </div>
+        </div>
+        <div style="padding:10px 16px;">
+
+          <!-- 세운 천간·지지 용신 관계 -->
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid ${ganRel.color};text-align:center;">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">천간 ${GAN_NM2[swG]}</div>
+              <div class="${ECL_S3[swGEl]}" style="font-size:16px;font-weight:700;">${ENM_S3[swGEl]}</div>
+              <div style="font-size:11px;font-weight:700;color:${ganRel.color};">${ganRel.icon} ${ganRel.lbl}</div>
+            </div>
+            <div style="flex:1;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid ${jiRel.color};text-align:center;">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">지지 ${JI_NM2[swJ]}</div>
+              <div class="${ECL_S3[swJEl]}" style="font-size:16px;font-weight:700;">${ENM_S3[swJEl]}</div>
+              <div style="font-size:11px;font-weight:700;color:${jiRel.color};">${jiRel.icon} ${jiRel.lbl}</div>
+            </div>
+            ${johuMatch ? `<div style="flex:1;padding:8px 10px;background:#d0f0eb;border-radius:8px;border:1px solid #0e7c6a;text-align:center;">
+              <div style="font-size:10px;color:var(--text3);margin-bottom:3px;">조후용신</div>
+              <div style="font-size:13px;font-weight:700;color:#0e7c6a;">✓ 일치</div>
+              <div style="font-size:10px;color:#0e7c6a;">심리 안정</div>
+            </div>` : ''}
+          </div>
+
+          <!-- 종합 한 줄 평 -->
+          <div style="padding:8px 12px;background:${overallBad?'#fee2e0':overallGood?'#d0f0eb':'#eef1f8'};
+            border-radius:8px;font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6;">
+            ${summary}
+          </div>
+
+          <!-- 영역별 해석 -->
+          <div style="display:grid;gap:6px;">
+            ${areas.map(a=>`
+              <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
+                background:var(--bg);border-radius:8px;border-left:3px solid ${a.rel.color};">
+                <span style="font-size:14px;flex-shrink:0;">${a.icon}</span>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:${a.rel.color};margin-bottom:2px;">
+                    ${a.name} · <span>${a.rel.icon} ${a.rel.lbl}</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--text2);line-height:1.6;">
+                    ${makeAreaDesc(a.rel, a.name.split('·')[0].trim())}
+                  </div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  })();
+
+  el.innerHTML = html + swYongshinHtml;
   el.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 function renderOh(score) {
@@ -4904,7 +5048,17 @@ function renderSy(s,dwArr,zp,score,gender,y){
 
   document.getElementById('synth').innerHTML=`
 
-  <!-- ① 기본 정보 -->
+  <!-- ① 나의 사주 상세 풀이 (DB 연동) — 최상단 -->
+  <div id="origin-detail-wrap">
+    <div style="margin-top:4px;padding:14px 16px;background:var(--bg2);border:1px solid var(--bd);
+      border-radius:12px;text-align:center;color:var(--text3);font-size:12px;">
+      <span style="font-size:16px;">📖</span>
+      <div style="margin-top:6px;font-weight:600;color:var(--navy);">나의 사주 상세 풀이</div>
+      <div style="margin-top:4px;">DB 불러오는 중…</div>
+    </div>
+  </div>
+
+  <!-- ② 기본 정보 -->
   ${sec('📋 기본 정보','',`
     <div class="br">
       ${badge(GAN_NM[s[0].g]+JI_NM[s[0].j]+'년생','bg')}
@@ -4996,15 +5150,6 @@ function renderSy(s,dwArr,zp,score,gender,y){
     </div>
   `)}
 
-  <!-- ⑧ 나의 사주 고정 상세 풀이 (DB 연동) -->
-  <div id="origin-detail-wrap">
-    <div style="margin-top:12px;padding:14px 16px;background:var(--bg2);border:1px solid var(--bd);
-      border-radius:12px;text-align:center;color:var(--text3);font-size:12px;">
-      <span style="font-size:16px;">📖</span>
-      <div style="margin-top:6px;font-weight:600;color:var(--navy);">나의 사주 상세 풀이</div>
-      <div style="margin-top:4px;">DB 불러오는 중…</div>
-    </div>
-  </div>
   `;
 }
 
@@ -5500,7 +5645,7 @@ function generate(){
         console.log('📋 DB 첫 번째 키:', sample);
       }
 
-      const html = renderIljuDetailSection(s[2].g, s[2].j, s[1].j, s[3].g, s[3].j, '📖 나의 사주 풀이', '일주 × 월지 × 출생시간 기반 고정 분석');
+      const html = renderIljuDetailSection(s[2].g, s[2].j, s[1].j, s[3].g, s[3].j, '📖 나의 사주 풀이', '');
       if(html) wrap.innerHTML = html;
       else wrap.innerHTML = `<div style="margin-top:12px;padding:14px 16px;background:var(--bg2);border:1px solid var(--bd);border-radius:12px;text-align:center;color:var(--text3);font-size:12px;">이 일주의 상세 풀이 DB를 준비 중입니다.</div>`;
     }
