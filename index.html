@@ -1983,7 +1983,7 @@ const SAENG_BY = [4,0,1,2,3];   // el을 생해주는 오행(인성)
 
 /* ① 화격(化格) */
 const CHEONGAN_HAP_EL = {};
-[[0,4,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
+[[0,5,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
   CHEONGAN_HAP_EL[`${a}-${b}`]=el; CHEONGAN_HAP_EL[`${b}-${a}`]=el;
 });
 const HWA_NAMES=['丁壬化木格','戊癸化火格','甲己化土格','乙庚化金格','丙辛化水格'];
@@ -4107,10 +4107,14 @@ function calcNaeGyeok(s,score){
 
   // 2-1) ★ 전충(全冲) 감지 — 모든 지지가 충에 연루될 때
   // 전충: 원국 4개 지지가 2쌍의 충으로 이루어진 경우 (최악의 파격)
+  // ★ 전충 감지 — 중복 지지 포함 실제 충 쌍 수 계산
+  // includes() 방식은 寅寅申申처럼 중복 지지를 1쌍으로 오판 → filter().length 사용
   let jeonChungCount = 0;
   const CHUNG_PAIRS = [[0,6],[1,7],[2,8],[3,9],[4,10],[5,11]];
   for(const [a,b] of CHUNG_PAIRS){
-    if(jiList.includes(a)&&jiList.includes(b)) jeonChungCount++;
+    const cntA = jiList.filter(j=>j===a).length;
+    const cntB = jiList.filter(j=>j===b).length;
+    if(cntA>0 && cntB>0) jeonChungCount += Math.min(cntA,cntB);
   }
   const isJeonChung = jeonChungCount >= 2; // 2쌍 이상 충 = 전충
 
@@ -4204,7 +4208,25 @@ function calcNaeGyeok(s,score){
 
   // ★ 실질 종格 경향 판단 (파격 OR 극신약 압도) ★
   let tendencyGeok = null;
-  if(((isPagyeok && geokStrength <= 50) || isJongSeong) && score){
+
+  // ★ 전충(全冲) 사주는 종格 경향이 아니라 인수 의존 구조 ★
+  // 모든 지지가 충에 연루되면 어느 방향으로도 종할 수 없음
+  if(isJeonChung && isPagyeok){
+    const dgEl2 = GEL[dg];
+    const inEl2 = SAENG_BY[dgEl2];
+    const ENM_S5 = ['木','火','土','金','水'];
+    tendencyGeok = {
+      name: '인수 의존 구조',
+      el: inEl2,
+      ratio: null,
+      isJeonChungType: true,
+      desc: `지지 전체가 충(冲)에 연루된 <strong>전충(全冲) 구조</strong>입니다. `
+          + `充의 진동으로 어느 방향으로도 흐름이 고착되지 않아 종格으로 흘러갈 수 없습니다. `
+          + `대신 일간을 직접 생조하는 <strong>${ENM_S5[inEl2]}(인성·인수)</strong>에 의존하는 구조로, `
+          + `${ENM_S5[inEl2]} 기운이 강한 대운·세운에서 비로소 에너지가 안정되고 좋은 결과가 따릅니다. `
+          + `<br><span style="font-size:11px;color:#b07d1a;">⚠ 재성(${ENM_S5[GEUK[dgEl2]]})이 인성을 극하므로 재물 욕심을 앞세우는 운에서 가장 흔들립니다.</span>`
+    };
+  } else if(((isPagyeok && geokStrength <= 50) || isJongSeong) && score){
     const total2 = score.reduce((a,b)=>a+b,0);
     if(total2 > 0){
       // 일간 기준 십성별 오행
@@ -4224,12 +4246,12 @@ function calcNaeGyeok(s,score){
         { ss:'종강격(從强格) 경향', el:biEl2,   score:score[biEl2] },
       ];
 
-      // 가장 강한 오행의 종격 경향
+      // 가장 강한 오행의 종格 경향
       const top = ssScore.reduce((a,b)=>a.score>b.score?a:b);
       const topRatio = Math.round(top.score/total2*100);
       const ENM_S5 = ['木','火','土','金','水'];
 
-      // 압도적(25% 이상)일 때만 종격 경향 표시
+      // 압도적(20% 이상)일 때만 종格 경향 표시
       if(topRatio >= 20){
         tendencyGeok = {
           name: top.ss,
@@ -4303,10 +4325,37 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
   const ganList_ = s.map(p=>p.g);
   const CHUNG_P = [[0,6],[3,9],[2,8],[5,11],[1,7],[4,10]];
   const GAN_CH  = [[0,6],[1,7],[2,8],[3,9]];
+  // ★ 전충 감지 — 중복 지지 포함 실제 충 쌍 수 계산
   let chungCount = 0;
-  for(const [a,b] of CHUNG_P){ if(jiList_.includes(a)&&jiList_.includes(b)) chungCount++; }
+  for(const [a,b] of CHUNG_P){
+    const cntA = jiList_.filter(j=>j===a).length;
+    const cntB = jiList_.filter(j=>j===b).length;
+    if(cntA>0 && cntB>0) chungCount += Math.min(cntA,cntB);
+  }
   for(const [a,b] of GAN_CH){  if(ganList_.includes(a)&&ganList_.includes(b)) chungCount++; }
   const isJeonChung = chungCount >= 2;
+
+  // ★ 전충 사주 용신 강제 적용 ★
+  // 이론: 지지가 모두 충에 연루되면 어느 방향으로도 종(從)할 수 없음
+  // → 충의 진동으로 에너지가 불안정 → 일간을 직접 생조하는 인성이 유일한 안정처
+  // 신강/신약/중화 관계없이 인성을 최우선 용신으로 강제
+  if(isJeonChung) {
+    yEl = inEl;  // 용신: 인성
+    hEl = biEl;  // 희신: 비겁 (일간 강화)
+    gEl = jaeEl; // 기신: 재성 (인성 극)
+    guEl = sikEl; // 구신: 식상 (설기)
+    hnEl = gwanEl; // 한신: 관살
+    return {
+      yongshinEl: yEl, heeshinEl: hEl, gishinEl: gEl, gushinEl: guEl, hanshinEl: hnEl,
+      desc: `사주 지지가 모두 충(冲)에 연루된 <strong>전충(全冲) 구조</strong>입니다. `
+          + `충이 ${chungCount}쌍으로 지지 전체가 진동하여 어느 방향으로도 흐름이 고착되지 않습니다. `
+          + `이 경우 신강·신약의 일반 억부를 적용하기 어려우며, `
+          + `일간을 직접 생조하는 <strong>${ENM[inEl]}(인성)</strong>이 유일한 안정처가 됩니다. `
+          + `재성(${ENM[jaeEl]})은 인성을 극하여 가장 불리하고, `
+          + `식상(${ENM[sikEl]})은 일간을 설기하여 구신입니다. `
+          + `${ENM[inEl]} 운이 올 때 비로소 에너지가 안정되고 좋은 결과가 따릅니다.`
+    };
+  }
 
   // ★ 비겁 과다 格 보정 ★
   const BIJIP_GEOK = ['월겁격','건록격','양인격'];
@@ -4732,9 +4781,9 @@ function renderYongshin(s,score,curDw,activations){
       </div>`:''}
       <div class="ys-desc">월지 <strong>${JH[geok.mJi]}</strong> 본기 <strong>${geok.bongiGan}</strong>이 일간 <strong>${GH[dg]}</strong>에 대해 <strong>${geok.ss}</strong>으로 작용 → <strong>${geok.name}</strong>. ${geok.touChul?`본기 오행(${ENM[geok.bongiEl]})이 천간에 투출하여 격국이 강합니다.`:'본기가 천간에 투출하지 않아 격의 힘이 약합니다.'} ${geok.isPagyeok?`<br><span style="color:#c0392b;font-weight:600;">⚠ 파격 사유: ${geok.pagyeokDesc||'格이 손상됨'}</span> — 格의 뿌리가 손상되어 格의 힘이 크게 약화됩니다. 格보다 용신 위주로 해석하는 것이 적합합니다.`:''}</div>
       ${geok.tendencyGeok ? `
-      <div style="margin-top:10px;padding:10px 12px;background:#fff3cd;border-radius:8px;border-left:3px solid #b07d1a;">
-        <div style="font-size:11px;font-weight:700;color:#b07d1a;margin-bottom:4px;">
-          🔄 실질 종격 경향 — ${geok.tendencyGeok.name}
+      <div style="margin-top:10px;padding:10px 12px;background:${geok.tendencyGeok.isJeonChungType?'#e8f4fd':'#fff3cd'};border-radius:8px;border-left:3px solid ${geok.tendencyGeok.isJeonChungType?'#1a5fa8':'#b07d1a'};">
+        <div style="font-size:11px;font-weight:700;color:${geok.tendencyGeok.isJeonChungType?'#1a5fa8':'#b07d1a'};margin-bottom:4px;">
+          ${geok.tendencyGeok.isJeonChungType?'🌊 인수(印綬) 의존 구조':'🔄 실질 종格 경향'} — ${geok.tendencyGeok.name}
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.7;">${geok.tendencyGeok.desc}</div>
       </div>` : ''}
@@ -5374,7 +5423,7 @@ function renderDwDetail(idx){
         <div style="margin-top:8px;padding:8px 10px;background:#fff3cd;border-radius:8px;
           border-left:3px solid #b07d1a;font-size:12px;color:var(--text2);line-height:1.6;">
           <div style="font-size:11px;font-weight:700;color:#b07d1a;margin-bottom:3px;">
-            🔄 실질 종格 경향 — ${dwGeok.tendencyGeok.name}
+            ${dwGeok.tendencyGeok.isJeonChungType?'🌊 인수(印綬) 의존 구조':'🔄 실질 종格 경향'} — ${dwGeok.tendencyGeok.name}
           </div>
           ${dwGeok.tendencyGeok.desc}
         </div>` : ''}
