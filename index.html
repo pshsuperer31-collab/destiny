@@ -1887,36 +1887,20 @@ function calcOhaeng(s, currentDwJ) {
     }
   }
 
-  // ── 4단계: 통근(通根) 체크 개선 ── (新개선)
-  // 단순 있음/없음이 아니라 어느 지지에 통근하는지, 몇 곳에 통근하는지 반영
-  // 월지 통근: 가장 강한 뿌리 (+25%), 일지 통근: (+20%), 연·시지 통근: (+15%)
-  // 통근 지지 수가 많을수록 가중 적용 (최대 +40%)
-  // 통근 없음: ×0.85
-  const JI_ROOT_BONUS = [0.15, 0.25, 0.20, 0.15]; // 연·월·일·시지 통근 보너스
-  ganEff.forEach(e=>{
-    let rootBonus = 0;
-    let rootCount = 0;
-    jiList.forEach((j,jIdx)=>{
-      const jiGans = JJG_DETAIL[j];
-      const jiBaseEl = jiEff[jIdx].converted ? jiEff[jIdx].el : JEL[j];
-      // 지장간에서 통근 체크 (본기·중기·여기 모두)
-      const hasRoot = jiGans.some(g=>{
-        if(!g) return false;
-        const idx=GH_IDX[g];
-        return idx!=null && GEL[idx]===e.el;
-      }) || jiBaseEl===e.el;
-      if(hasRoot){
-        rootBonus += JI_ROOT_BONUS[jIdx] * jiEff[jIdx].bonus;
-        rootCount++;
-      }
-    });
-    if(rootCount===0){
-      e.bonus *= 0.85; // 통근 없음: 부유천간(浮遊天干)
-    } else {
-      // 통근 보너스 적용 (최대 +40%)
-      const totalBonus = Math.min(rootBonus, 0.40);
-      e.bonus *= (1 + totalBonus);
-    }
+  // ── 4단계: 통근(通根) 체크 — 거리+등급+충 감쇄 반영한 tonggeunStrength 활용 ──
+  // 충받은 지지의 통근은 약화: 충x0.4, 육합완충충x0.7
+  const chungMask4 = calcJiChungMask(jiList);
+  ganEff.forEach((e, ganIdx)=>{
+    const ganVal = ganList[ganIdx];
+    const tgStr  = tonggeunStrength(ganVal, jiList, ganIdx, chungMask4); // 충 감쇄 포함
+    let rootMult;
+    if     (tgStr === 0)   rootMult = 0.80;
+    else if(tgStr < 0.5)   rootMult = 1.08;
+    else if(tgStr < 0.65)  rootMult = 1.15;
+    else if(tgStr < 0.85)  rootMult = 1.22;
+    else                   rootMult = 1.30;
+    e.bonus *= rootMult;
+    e._tgStr = tgStr;
   });
 
   // ── 5단계: 점수 합산 ──
@@ -2244,6 +2228,21 @@ function calcGaJong(s, score) {
             `이를 <strong>가${topType}격(假從格)</strong>이라 합니다. ` +
             `종格에 매우 가까운 구조로, ${ENM[topEl]}·${ENM[SAENG_BY[topEl]]} 운에 강하게 반응합니다.`
     };
+  }
+
+  // ★ 방해 오행 강도 체크 — 인성 천간의 통근 강도까지 반영
+  // 조건: 인성 천간이 있고 + 통근까지 있으면 실질 방해 강함 → 내격
+  // 통근 없는 인성 천간(뜬구름)은 방해 약함 → 가종格 가능
+  const jiListGj = s.map(p=>p.j);
+  const inGanList = s.filter((p,i)=>i!==2&&GEL[p.g]===inEl);
+  const inElRatio = score[inEl] / total;
+  if(inGanList.length>0 && inElRatio >= 0.13){
+    // 방해 천간 중 통근 있는 것이 하나라도 있으면 → 실질 방해
+    const inGanWithRoot = inGanList.some((p,pi)=>{
+      const pillarIdx = s.indexOf(p);
+      return tonggeunStrength(p.g, jiListGj, pillarIdx) > 0;
+    });
+    if(inGanWithRoot) return null; // 통근 있는 인성 천간 → 내격 처리
   }
 
   // 가종格: 실질 통근 1이하 + 보정helpRatio 10~30% + 지배오행 35%+
@@ -5103,11 +5102,34 @@ function renderMs(s){
   const yj=s[0].j; // 연지 (신살 기준)
   const dg=s[2].g; // 일간 (십성 기준)
   const LBMAP={연주:'年柱',월주:'月柱',일주:'日柱',시주:'時柱'};
+  const jiArr=s.map(p=>p.j); // 지지 배열 — 통근 강도 계산용
+  const chungMask=calcJiChungMask(jiArr); // ★ 충 감쇄율 미리 계산
   document.getElementById('mingsik').innerHTML=s.map((p,idx)=>{
     const ge=GEL[p.g], je=JEL[p.j];
     const isIlgan=idx===2;
     const ganSS = isIlgan ? '日元' : getSS(dg, p.g);
     const jiSS  = isIlgan ? '—'    : getJiSS(dg, p.j);
+
+    // ★ 천간 통근 강도 계산 (충 감쇄 포함) ★
+    const tgStr = tonggeunStrength(p.g, jiArr, idx, chungMask);
+    const tgLabel = tgStr===0 ? '무근(無根)' :
+                    tgStr<0.5 ? '극약통근' :
+                    tgStr<0.65? '약통근' :
+                    tgStr<0.85? '중통근' : '강통근';
+    const tgColor = tgStr===0 ? '#aaa' :
+                    tgStr<0.5 ? '#b07d1a' :
+                    tgStr<0.65? '#1a5fa8' :
+                    tgStr<0.85? '#0e7c6a' : '#0e4d6e';
+    const tgIcon  = tgStr===0 ? '○' :
+                    tgStr<0.5 ? '△' :
+                    tgStr<0.65? '◎' :
+                    tgStr<0.85? '●' : '★';
+    // 통근 지지 목록
+    const tgRoots = (TONGGEUN_MAP[p.g]||[])
+      .map((j,_)=>({j, found:jiArr.includes(j)}))
+      .filter(r=>r.found)
+      .map(r=>JH[r.j]).join('');
+
     return`<div class="pillar">
       <div class="p-head">${LBMAP[p.lbl]}</div>
       <div class="p-ss">
@@ -5115,6 +5137,9 @@ function renderMs(s){
       </div>
       <div class="p-gan">
         <div class="gan-h ${ECL[ge]}">${GH[p.g]}</div>
+        <div style="margin-top:4px;font-size:10px;font-weight:700;color:${tgColor};letter-spacing:0.03em;">
+          ${tgIcon} ${tgLabel}${tgRoots?`<span style="color:#999;font-weight:400;margin-left:3px;">(${tgRoots})</span>`:''}
+        </div>
       </div>
       <div class="p-ji">
         <div class="ji-h ${ECL[je]}">${JH[p.j]}</div>
@@ -7066,16 +7091,33 @@ const SW_SINSAL_TABLE = {
 
 /* 통근표: 각 천간이 뿌리내릴 수 있는 지지 목록 */
 const TONGGEUN_MAP = {
-  0:  [2,11],           // 甲 → 寅,亥
-  1:  [3,2,11,7],       // 乙 → 卯,寅,亥,未
-  2:  [5,2,6],          // 丙 → 巳,寅,午
-  3:  [5,6,10],         // 丁 → 巳,午,戌
-  4:  [1,4,7,10,2],     // 戊 → 丑,辰,未,戌,寅
-  5:  [1,4,7,10,5,6],   // 己 → 丑,辰,未,戌,巳,午
-  6:  [5,8,9,10],       // 庚 → 巳,申,酉,戌
-  7:  [1,9,10,5],       // 辛 → 丑,酉,戌,巳
-  8:  [0,8,11],         // 壬 → 子,申,亥
-  9:  [0,1,4,11],       // 癸 → 子,丑,辰,亥
+  // 같은 오행의 이종 천간(음양 반대)도 약통근 인정 (이종여기 등급으로)
+  0:  [2,3,11],           // 甲 → 寅(본기),亥(중기), 卯(이종여기-乙자리)
+  1:  [3,4,7,2,11],       // 乙 → 卯(중기),辰(여기),未(중기), 寅·亥(이종여기-甲자리)
+  2:  [2,5,6,7],          // 丙 → 寅(중기),巳(본기),午(여기), 未(이종여기-丁자리)
+  3:  [6,7,10,5],         // 丁 → 午(본기),未(여기),戌(중기), 巳(이종여기-丙자리)
+  4:  [2,4,5,8,10,11],    // 戊 → 寅(여기),辰(본기),巳(여기),申(여기),戌(본기),亥(여기)
+  5:  [1,6,7,4,10],       // 己 → 丑(본기),午(중기),未(본기), 辰·戌(이종여기-戊자리)
+  6:  [5,8,9],            // 庚 → 巳(중기),申(본기), 酉(이종여기-辛자리)
+  7:  [1,9,10,8,5],       // 辛 → 丑(중기),酉(중기),戌(여기), 申(이종여기-庚자리),巳(이종여기-庚중기)
+  8:  [0,8,11,1],         // 壬 → 子(여기),申(중기),亥(본기), 丑(이종여기-癸자리)
+  9:  [0,1,4,11],         // 癸 → 子(본기),丑(여기),辰(중기), 亥(이종여기-壬자리)
+};
+
+// 지지별 천간 지장간 등급 (본기=3, 중기=2, 여기=1, 이종여기=0.5)
+const TONGGEUN_GRADE = {
+  0:  {8:1,9:3},                    // 子: 壬여기,癸본기
+  1:  {9:1,7:2,5:3, 8:0.5},        // 丑: 癸여기,辛중기,己본기, 壬이종
+  2:  {4:1,2:2,0:3, 1:0.5},        // 寅: 戊여기,丙중기,甲본기, 乙이종
+  3:  {1:3, 0:0.5},                 // 卯: 乙본기, 甲이종
+  4:  {1:1,9:2,4:3, 5:0.5},        // 辰: 乙여기,癸중기,戊본기, 己이종
+  5:  {4:1,6:2,2:3, 3:0.5,7:0.5},  // 巳: 戊여기,庚중기,丙본기, 丁이종,辛이종
+  6:  {2:1,5:2,3:3},                // 午: 丙여기,己중기,丁본기
+  7:  {3:1,1:2,5:3, 2:0.5},        // 未: 丁여기,乙중기,己본기, 丙이종
+  8:  {4:1,8:2,6:3, 7:0.5},        // 申: 戊여기,壬중기,庚본기, 辛이종
+  9:  {7:3, 6:0.5},                 // 酉: 辛본기, 庚이종
+  10: {7:1,3:2,4:3, 5:0.5},        // 戌: 辛여기,丁중기,戊본기, 己이종
+  11: {4:1,0:2,8:3, 9:0.5},        // 亥: 戊여기,甲중기,壬본기, 癸이종
 };
 
 /* 천간합 목록 */
@@ -7087,15 +7129,57 @@ const GAN_HAP_LIST = [
   {a:4,b:9,hw:1,name:'戊癸합',result:'화(火)'},
 ];
 
-/* 통근 강도 계산 (0=무근, 1=약통근, 2=강통근) */
-function tonggeunStrength(ganIdx, jiArr) {
-  const roots = TONGGEUN_MAP[ganIdx] || [];
-  const matched = jiArr.filter(j => roots.includes(j));
-  if(matched.length === 0) return 0;
-  // 본기(本氣) 지지에 통근하면 강통근
-  const BONGI = {0:2, 1:3, 2:6, 3:6, 4:4, 5:4, 6:9, 7:9, 8:11, 9:0};
-  const hasBongi = matched.includes(BONGI[ganIdx]);
-  return hasBongi ? 2 : 1;
+/* ★ 통근 강도 계산 — 거리(기둥간격) + 지장간 등급(본기/중기/여기) 반영 ★
+ * ganVal:    천간 인덱스(0~9, 甲~癸) → TONGGEUN_MAP 조회
+ * jiArr:     지지 배열 [연지,월지,일지,시지]
+ * pillarIdx: 이 천간이 위치한 기둥 순서(0=연,1=월,2=일,3=시) → 거리 계산용
+ *            없으면 거리 무시(기존 호환)
+ * 반환값: 0=무근, ~0.4=극약, ~0.6=약, ~0.8=중, ~1.0=강
+ */
+/* 지지 충 감쇄율 계산 — 각 지지가 충을 받을 때 통근 강도 감소
+ * 충: x0.4, 육합으로 완충된 충: x0.7, 충 없음: x1.0
+ */
+function calcJiChungMask(jiArr) {
+  const CHUNG_P = [[0,6],[1,7],[2,8],[3,9],[4,10],[5,11]];
+  const YUKH_M  = {0:1,1:0,2:11,11:2,3:10,10:3,4:9,9:4,5:8,8:5,6:7,7:6};
+  const mask = jiArr.map(()=>1.0);
+  for(let i=0;i<jiArr.length;i++){
+    for(let j=i+1;j<jiArr.length;j++){
+      const a=jiArr[i],b=jiArr[j];
+      if(!CHUNG_P.some(([x,y])=>(a===x&&b===y)||(a===y&&b===x))) continue;
+      const aYukh=jiArr.some((j2,ji2)=>ji2!==i&&YUKH_M[a]===j2);
+      const bYukh=jiArr.some((j2,ji2)=>ji2!==j&&YUKH_M[b]===j2);
+      mask[i]*=aYukh?0.7:0.4;
+      mask[j]*=bYukh?0.7:0.4;
+    }
+  }
+  return mask;
+}
+
+function tonggeunStrength(ganVal, jiArr, pillarIdx, chungMask) {
+  const roots = TONGGEUN_MAP[ganVal] || [];
+  const DIST_W = [1.0, 0.8, 0.6, 0.4];
+  const GRADE_W = {3:1.0, 2:0.85, 1:0.65}; // 본기,중기,여기
+  const hasPillar = pillarIdx !== undefined && pillarIdx !== null;
+  // 충 감쇄율: 없으면 자동 계산
+  const mask = chungMask || calcJiChungMask(jiArr);
+  let maxScore = 0;
+  jiArr.forEach((j, ji) => {
+    if(!roots.includes(j)) return;
+    const grade = (TONGGEUN_GRADE[j] || {})[ganVal] || 1;
+    const distW  = hasPillar ? (DIST_W[Math.abs(pillarIdx - ji)] || 0.4) : 1.0;
+    const gradeW = GRADE_W[grade] || (grade===0.5?0.45:0.65);
+    maxScore = Math.max(maxScore, distW * gradeW * mask[ji]); // ★ 충 감쇄 적용
+  });
+  return Math.round(maxScore * 100) / 100;
+}
+
+// 하위 호환: 기존 코드(0/1/2 반환)와 혼용되는 곳을 위한 래퍼
+function tonggeunStrengthLegacy(ganVal, jiArr) {
+  const s = tonggeunStrength(ganVal, jiArr);
+  if(s === 0) return 0;
+  if(s >= 0.8) return 2; // 강통근
+  return 1;              // 약통근
 }
 
 /* 병존 관계 유형 분류 */
