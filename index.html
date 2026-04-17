@@ -764,7 +764,7 @@ function calcDaeunStartAge(sy, sm, sd, isYang, isMale) {
     // 소한(인덱스11)은 1월로 연도 처리 주의
     if (prevIdx === 11) prevY = sy - 1; // 소한은 항상 전년도
     targetJD = getJeolJD(prevY, prevIdx);
-    if (targetJD >= birthJD) targetJD = getJeolJD(prevY - 1, prevIdx);
+    if (targetJD > birthJD) targetJD = getJeolJD(prevY - 1, prevIdx);
   }
 
   const days = Math.abs(targetJD - birthJD);
@@ -3954,14 +3954,14 @@ const DW_DB = {
    dw:[木火土金水] (대운 오행 활성화 점수) */
 const JOB_MAP = {
   // 의료·보건
-  '내과의·외과의':        {el:[0,0,1,1,2],geok:[2,1,0,0,0,0,1,2,0],sinsal:[0,0,0,1,1,1,1,0],ss:[0,0,1,2,0],dw:[0,0,1,2,1],note:'관인상생(金水)+양인+인성'},
-  '정신건강의학과':        {el:[2,0,0,0,2],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,2,1,0,1],ss:[0,0,0,2,0],dw:[2,0,1,0,2],note:'편인+水+화개→마음탐구'},
-  '한의사':               {el:[1,0,2,0,1],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,2,0,1,1,0,1],ss:[0,0,0,2,0],dw:[0,0,2,1,1],note:'편인+土(자연)+화개+인성'},
-  '치과의사':             {el:[0,0,0,2,1],geok:[1,1,0,0,0,0,0,2,0],sinsal:[0,0,0,0,2,1,1,0],ss:[0,0,0,2,0],dw:[0,0,0,2,1],note:'金(정밀)+정관格+문창+양인'},
-  '약사·임상약사':        {el:[0,0,1,2,1],geok:[1,2,0,0,0,0,0,2,0],sinsal:[0,0,0,0,2,1,0,0],ss:[0,0,0,2,0],dw:[0,0,1,2,1],note:'정인格+金(정밀)+문창귀인'},
-  '간호사·전문간호사':    {el:[1,1,1,0,1],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,0,0,1,2,0,0],ss:[1,0,1,1,0],dw:[1,1,1,0,0],note:'정인格+天乙귀인+관인상생'},
-  '물리치료사·재활치료':  {el:[1,1,1,1,0],geok:[0,1,1,0,0,0,0,1,0],sinsal:[0,0,0,1,0,2,1,0],ss:[1,0,0,1,0],dw:[0,1,1,1,0],note:'天乙귀인+양인+식상'},
-  '의료기사(방사선·임상병리)': {el:[0,0,0,2,1],geok:[2,1,0,0,0,0,0,0,0],sinsal:[0,0,1,0,2,0,0,0],ss:[0,0,0,2,0],dw:[0,0,0,2,1],note:'편인格+金(정밀)+문창'},
+  '내과의·외과의':        {el:[0,1,1,2,1],geok:[2,1,0,0,0,0,1,2,0],sinsal:[0,0,0,1,1,1,1,0],ss:[0,0,1,2,0],dw:[0,1,1,2,1],note:'金(정밀기술)+火(치유에너지)+양인+인성'},
+  '정신건강의학과':        {el:[0,1,1,0,2],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,2,1,0,1],ss:[0,0,0,2,0],dw:[1,1,1,0,2],note:'水(심층탐구)+火(소통)+편인'},
+  '한의사':               {el:[0,0,2,1,1],geok:[2,2,0,0,0,0,0,1,0],sinsal:[0,0,2,0,2,2,0,0],ss:[0,0,0,2,0],dw:[0,0,2,2,1],note:'土(배양·비위)+金(침술)+水(음양이론)+편인格+문창귀인+천을귀인'},
+  '치과의사':             {el:[0,0,1,2,0],geok:[1,1,0,0,0,0,0,2,0],sinsal:[0,0,0,0,2,1,1,0],ss:[0,0,0,2,0],dw:[0,0,1,2,0],note:'金(정밀기술)+정관格+문창+양인'},
+  '약사·임상약사':        {el:[0,0,2,2,0],geok:[1,2,0,0,0,0,0,2,0],sinsal:[0,0,0,0,2,1,0,0],ss:[0,0,0,2,0],dw:[0,0,2,2,0],note:'金(정제·정밀)+土(배합)+문창귀인'},
+  '간호사·전문간호사':    {el:[0,2,2,0,1],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,0,0,1,2,0,0],ss:[1,0,1,1,0],dw:[0,2,1,0,0],note:'火(따뜻한돌봄)+土(안정·배양)+天乙귀인'},
+  '물리치료사·재활치료':  {el:[0,1,1,1,0],geok:[0,1,1,0,0,0,0,1,0],sinsal:[0,0,0,1,0,2,1,0],ss:[1,0,0,1,0],dw:[0,1,1,1,0],note:'金(기술)+土(안정)+天乙귀인+양인'},
+  '의료기사(방사선·임상병리)': {el:[0,0,1,2,0],geok:[2,1,0,0,0,0,0,0,0],sinsal:[0,0,1,0,2,0,0,0],ss:[0,0,0,2,0],dw:[0,0,1,2,0],note:'편인格+金(정밀기기)+문창'},
   // 법조·공직·군경
   '판사·검사':            {el:[0,0,1,1,1],geok:[0,0,0,0,0,0,2,2,0],sinsal:[0,0,0,2,1,1,1,0],ss:[0,0,2,1,0],dw:[0,1,1,2,0],note:'정관格+관살과다+장성살'},
   '변호사':               {el:[1,0,0,1,1],geok:[0,0,0,2,0,0,1,1,0],sinsal:[0,0,0,1,2,1,0,0],ss:[1,0,1,1,0],dw:[1,0,0,2,1],note:'상관格(논리)+관살+문창귀인'},
@@ -3970,16 +3970,16 @@ const JOB_MAP = {
   '외교관·국제공무원':    {el:[1,0,0,1,2],geok:[1,0,0,0,1,0,0,2,0],sinsal:[0,2,0,1,1,1,0,0],ss:[1,1,1,1,0],dw:[1,0,0,1,2],note:'역마+水(소통)+정관格'},
   '노무사·세무사·변리사': {el:[0,0,1,2,1],geok:[0,1,0,1,0,1,0,1,0],sinsal:[0,0,0,1,2,1,0,0],ss:[1,0,1,2,0],dw:[0,0,1,2,1],note:'金(정밀)+문창귀인+상관格'},
   // 교육·연구
-  '교수(인문·사회)':      {el:[2,0,1,0,1],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,2,0,2,1,0,1],ss:[1,0,0,2,0],dw:[2,1,1,0,1],note:'편인格+木+화개+문창귀인'},
-  '교수(이공·의학)':      {el:[0,0,1,2,1],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,2,1,1,0],ss:[0,0,0,2,0],dw:[0,0,1,2,2],note:'편인格+金水+문창귀인'},
-  '초중고교사':           {el:[2,1,1,0,0],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,0,0,2,1,0,0],ss:[1,0,1,1,0],dw:[2,1,1,0,0],note:'정인格+木+문창+관인상생'},
-  '학원강사·인터넷강사':  {el:[2,1,0,0,1],geok:[2,0,0,1,0,0,0,1,0],sinsal:[1,0,1,0,2,0,0,0],ss:[2,0,0,1,0],dw:[2,2,0,0,1],note:'식상과다(표현)+木+문창귀인'},
-  '연구원·과학자':        {el:[0,0,1,1,2],geok:[2,1,0,0,0,0,0,0,0],sinsal:[0,0,2,0,2,0,0,1],ss:[0,0,0,2,0],dw:[1,0,1,1,2],note:'편인格+水(탐구)+화개+공망'},
-  '에듀테크·교육기획':    {el:[2,1,0,1,0],geok:[2,0,1,0,1,0,0,0,0],sinsal:[1,1,1,0,1,0,0,0],ss:[2,1,0,1,0],dw:[2,2,0,1,0],note:'편인格+木火+식상+역마'},
+  '교수(인문·사회)':      {el:[0,1,2,0,2],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,2,0,2,1,0,1],ss:[1,0,0,2,0],dw:[0,1,2,0,2],note:'土(학문기반)+火(표현)+水(탐구)+편인格+화개+문창귀인'},
+  '교수(이공·의학)':      {el:[0,0,2,2,1],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,2,1,1,0],ss:[0,0,0,2,0],dw:[0,0,2,2,1],note:'金(정밀)+土(학문기반)+水(탐구)+편인格+문창귀인'},
+  '초중고교사':           {el:[0,2,2,0,1],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,0,0,2,1,0,0],ss:[1,0,1,1,0],dw:[0,2,1,0,0],note:'火(열정·전달)+土(안정·교육환경)+문창귀인'},
+  '학원강사·인터넷강사':  {el:[0,2,1,0,1],geok:[2,0,0,1,0,0,0,1,0],sinsal:[1,0,1,0,2,0,0,0],ss:[2,0,0,1,0],dw:[0,2,0,0,1],note:'火(표현·전달)+土(기반)+식상과다+문창귀인'},
+  '연구원·과학자':        {el:[0,0,2,1,2],geok:[2,1,0,0,0,0,0,0,0],sinsal:[0,0,2,0,2,0,0,1],ss:[0,0,0,2,0],dw:[0,0,2,1,2],note:'水(탐구·지혜)+土(기반)+金(정밀)+편인格+화개+공망'},
+  '에듀테크·교육기획':    {el:[0,2,1,1,0],geok:[2,0,1,0,1,0,0,0,0],sinsal:[1,1,1,0,1,0,0,0],ss:[2,1,0,1,0],dw:[0,2,0,1,0],note:'火(표현)+金(기술)+편인格+식상+역마'},
   // 예술·창작
   '화가·일러스트레이터':  {el:[1,2,0,0,1],geok:[2,0,0,1,1,0,0,0,0],sinsal:[2,0,2,0,0,0,0,0],ss:[2,0,0,1,0],dw:[2,2,0,0,1],note:'火+도화+화개+식상(표현)'},
   '음악가·작곡가':        {el:[1,1,0,1,1],geok:[2,0,1,0,0,0,0,0,0],sinsal:[1,0,2,0,1,0,0,1],ss:[2,0,0,1,0],dw:[1,2,0,1,1],note:'편인格+화개+식상+도화'},
-  '가수·아이돌·연예인':   {el:[0,2,0,1,0],geok:[0,0,1,2,1,0,0,0,1],sinsal:[2,0,0,1,0,0,0,0],ss:[2,0,0,0,1],dw:[0,2,0,0,0],note:'火과다+도화+상관格+식상'},
+  '가수·아이돌·연예인':   {el:[0,2,0,1,0],geok:[0,0,0,3,1,0,0,0,0],sinsal:[1,0,0,1,0,0,0,0],ss:[2,0,0,0,0],dw:[0,2,0,0,0],note:'火과다+도화+상관格(핵심)+식상과다'},
   '배우·연극·뮤지컬':     {el:[0,2,0,0,1],geok:[0,0,0,2,1,0,0,0,0],sinsal:[2,0,1,0,0,1,0,0],ss:[2,0,0,0,0],dw:[0,2,0,0,1],note:'상관格+火+도화+식상과다'},
   '영화감독·방송PD':      {el:[1,2,0,0,0],geok:[2,0,0,1,1,0,0,0,0],sinsal:[1,0,2,0,1,0,0,0],ss:[2,1,0,1,0],dw:[1,2,0,0,0],note:'편인格+火+화개+식상+재성'},
   '소설가·웹소설작가':    {el:[2,0,0,0,2],geok:[2,0,0,1,0,0,0,0,0],sinsal:[0,0,2,0,2,0,0,1],ss:[2,0,0,1,0],dw:[2,1,0,0,2],note:'편인格+水+木+화개+문창'},
@@ -4007,8 +4007,8 @@ const JOB_MAP = {
   '환경·기후전문가':       {el:[2,0,1,0,1],geok:[0,1,0,0,0,0,0,1,0],sinsal:[0,2,2,0,0,1,0,0],ss:[0,0,0,2,0],dw:[2,0,2,0,1],note:'木(자연)+土+역마+화개'},
   '바이오·생명공학자':     {el:[2,0,1,0,1],geok:[2,0,0,0,0,0,0,0,0],sinsal:[0,0,2,0,2,0,0,0],ss:[0,0,0,2,0],dw:[2,0,1,0,2],note:'편인格+木水+화개'},
   // 상담·심리·복지
-  '심리상담사·심리치료사': {el:[2,0,1,0,1],geok:[2,0,0,0,0,0,0,1,0],sinsal:[0,0,2,0,2,1,0,1],ss:[0,0,1,2,0],dw:[2,1,1,0,1],note:'편인格+水木+화개+천을귀인'},
-  '사회복지사·케어매니저': {el:[2,1,1,0,0],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,1,0,1,2,0,0],ss:[1,0,1,1,0],dw:[2,1,1,0,0],note:'정인格+木+천을귀인+관인상생'},
+  '심리상담사·심리치료사': {el:[0,1,2,0,1],geok:[2,0,0,0,0,0,0,1,0],sinsal:[0,0,2,0,2,1,0,1],ss:[0,0,1,2,0],dw:[0,1,2,0,1],note:'土(안정·배양)+火(소통)+水(탐구)+편인格+화개+천을귀인'},
+  '사회복지사·케어매니저': {el:[0,2,2,0,0],geok:[0,2,0,0,0,0,0,1,0],sinsal:[0,0,1,0,1,2,0,0],ss:[1,0,1,1,0],dw:[0,2,1,0,0],note:'火(따뜻한돌봄)+土(안정)+정인格+천을귀인'},
   '라이프코치·커리어코치': {el:[1,2,0,0,1],geok:[0,0,0,2,1,0,0,0,0],sinsal:[1,1,0,0,1,1,0,0],ss:[2,1,0,0,1],dw:[1,2,0,0,1],note:'상관格+火(드러남)+식상과다'},
   // 역술·철학
   '명리·역술·점술전문가':  {el:[0,0,0,0,2],geok:[2,0,0,0,0,0,0,0,0],sinsal:[0,0,2,0,0,0,0,2],ss:[0,0,0,2,0],dw:[1,0,1,0,2],note:'편인格+水+화개+공망(핵심조합)'},
@@ -4025,7 +4025,7 @@ const JOB_MAP = {
   '웨딩플래너·이벤트기획': {el:[1,2,0,0,0],geok:[0,0,0,1,2,0,0,0,0],sinsal:[2,1,0,0,0,1,0,0],ss:[2,2,0,0,0],dw:[1,2,0,0,0],note:'편재格+火+도화+역마+식상'},
   '여행작가·여행크리에이터': {el:[1,1,0,0,1],geok:[0,0,1,1,1,0,0,0,0],sinsal:[1,2,0,0,0,0,0,0],ss:[2,1,0,0,0],dw:[1,2,0,0,1],note:'역마(핵심)+식상+火木'},
   '퍼스널컬러리스트·코디': {el:[0,2,0,1,0],geok:[0,0,0,1,1,0,0,0,0],sinsal:[2,0,0,0,0,0,0,0],ss:[2,1,0,0,0],dw:[0,2,0,1,0],note:'火+金(심미)+도화+식상'},
-  '수의사·동물전문가':     {el:[2,0,1,0,1],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,1,2,0,0],ss:[0,0,0,2,0],dw:[2,0,1,0,1],note:'편인格+木土+천을귀인'},
+  '수의사·동물전문가':     {el:[0,1,2,1,0],geok:[2,1,0,0,0,0,0,1,0],sinsal:[0,0,1,0,1,2,0,0],ss:[0,0,0,2,0],dw:[0,1,2,1,0],note:'土(배양)+火(치유)+金(기술)+천을귀인'},
 };
 
 /* 대운 오행별 직업 활성화 이론 */
@@ -4097,20 +4097,138 @@ function calcDwJobSignal(s, score, geok, dwG, dwJ) {
   // 대운 오행
   const dwGEl=GEL_D[dwG],dwJEl=JEL_D[dwJ];
 
+  // ★ 용신/기신 가중치 — 루프 밖에서 한 번만 계산
+  const sg_d=calcShinGangYak(s,score);
+  const isOuter_d=['HWA','ILHAENG','JONG','GAJONG'].includes(geok?.type);
+  const eokbu_d=isOuter_d?geok:calcEokbuYongshin(s,score,sg_d,geok);
+  const yEl_d=eokbu_d?.yongshinEl??geok?.yongshinEl??null;
+  const hEl_d=eokbu_d?.heeshinEl??geok?.heeshinEl??null;
+  const hnEl_d=eokbu_d?.hanshinEl??null;
+  const gEl_d=eokbu_d?.gishinEl??geok?.gishinEl??null;
+  const guEl_d=eokbu_d?.gushinEl??null;
+  const elWeight_d=[0,0,0,0,0];
+  if(yEl_d!=null) elWeight_d[yEl_d]=3;
+  if(hEl_d!=null) elWeight_d[hEl_d]=Math.max(elWeight_d[hEl_d],2);
+  if(hnEl_d!=null) elWeight_d[hnEl_d]=Math.max(elWeight_d[hnEl_d],1);
+  if(guEl_d!=null) elWeight_d[guEl_d]=Math.min(elWeight_d[guEl_d],-1);
+  if(gEl_d!=null) elWeight_d[gEl_d]=Math.min(elWeight_d[gEl_d],-2);
+
+  // ★ 종格/가종格 여부
+  const isJongType = geok?.type==='JONG'||geok?.type==='GAJONG';
+  const jongEl_dw = geok?.domEl??geok?.jongEl??null;
+  const GEUK_DW=[2,3,4,0,1];
+  const jongGiEl_dw = jongEl_dw!=null ? [0,1,2,3,4].find(i=>GEUK_DW[i]===jongEl_dw) : null;
+  const dwIsGiForJong = jongGiEl_dw!=null && (dwGEl===jongGiEl_dw||dwJEl===jongGiEl_dw);
+  const dwIsYongForJong = jongEl_dw!=null && (dwGEl===jongEl_dw||dwJEl===jongEl_dw);
+
   // 각 직업 점수 계산
   const jobResults=[];
   Object.entries(JOB_MAP).forEach(([name,v])=>{
     let score_=0;
-    // 원국 적합도
-    elPct.forEach((p,i)=>{if(p>=25&&v.el[i]>=1)score_+=v.el[i]*(p>=30?2:1);});
+
+    // ★ 원국 적합도 — 용신/기신 오행 가중치 기반
+    for(let i=0;i<5;i++){
+      if(v.el[i]>0 && elWeight_d[i]!==0) score_+=v.el[i]*elWeight_d[i];
+    }
     if(gi>=0&&gi<v.geok.length)score_+=v.geok[gi]*2;
     sinsal.forEach((s_,i)=>{if(s_&&v.sinsal[i])score_+=v.sinsal[i];});
     ss.forEach((s_,i)=>{if(s_&&v.ss[i])score_+=v.ss[i];});
-    // 대운 활성화 점수
-    const dwBoost=(v.dw[dwGEl]||0)+(v.dw[dwJEl]||0);
-    const totalScore=score_+dwBoost*1.5;
+
+    // ★ 대운 활성화 점수 — 용신/기신 가중치 기반
+    // 대운 천간/지지 오행이 용신이면 그 오행 친화 직업 부스트
+    // 대운 오행이 기신이면 그 오행 친화 직업 디버프
+    let dwBoost=0;
+    if(isJongType && jongEl_dw!=null){
+      if(dwIsYongForJong){
+        dwBoost=(v.dw[jongEl_dw]||0)*1.5;
+      } else if(dwIsGiForJong){
+        dwBoost=0;
+      } else {
+        dwBoost=((v.dw[dwGEl]||0)+(v.dw[dwJEl]||0))*0.5;
+      }
+    } else {
+      // ★ 내격: 대운 오행을 용신/기신 가중치로 평가
+      // 대운 천간 기여: 그 오행의 elWeight × v.dw[el]
+      const dwGWeight = elWeight_d[dwGEl] || 0;
+      const dwJWeight = elWeight_d[dwJEl] || 0;
+      // v.dw는 그 오행 대운에서 얼마나 활성화되는지의 친화도
+      // 용신 오행 대운 → v.dw가 높은 직업 부스트
+      // 기신 오행 대운 → v.dw가 높아도 디버프
+      const dwGBoost = (v.dw[dwGEl]||0) * (dwGWeight > 0 ? 1 : dwGWeight < 0 ? -0.5 : 0);
+      const dwJBoost = (v.dw[dwJEl]||0) * (dwJWeight > 0 ? 1.5 : dwJWeight < 0 ? -0.5 : 0.3);
+      dwBoost = dwGBoost + dwJBoost;
+    }
+
+    const totalScore=score_+dwBoost;
     if(totalScore>0)jobResults.push({name,score:Math.round(totalScore*10)/10,dwBoost,note:v.note});
   });
+
+  // 종格/가종格: 기신 대운이어도 종格 방향 직업이 상위 유지되도록
+  if(isJongType && jongEl_dw!=null){
+    const GEUK_P=[2,3,4,0,1];
+    const giEl_p=[0,1,2,3,4].find(i=>GEUK_P[i]===jongEl_dw);
+    // 기신 오행 강한 직업 하향
+    const penaltyJobs=Object.entries(JOB_MAP).filter(([_,v])=>{
+      // 기신 오행이 el에서 강하게 포함된 직업
+      return giEl_p!=null && (v.el[giEl_p]||0)>=2;
+    }).map(([name])=>name);
+    jobResults.forEach(j=>{
+      if(penaltyJobs.includes(j.name)) j.score=Math.max(0,j.score-3);
+    });
+    // 용신 오행 강한 직업 부스트
+    const boostJobs=Object.entries(JOB_MAP).filter(([_,v])=>{
+      return (v.el[jongEl_dw]||0)>=2;
+    }).map(([name])=>name);
+    jobResults.forEach(j=>{
+      if(boostJobs.includes(j.name)) j.score+=1;
+    });
+  }
+
+  // ── 格局별 직업 보정 (calcJobPrediction과 동일) ──
+  const geokName_d = geok?.name||'';
+  {
+    const isSangGwan_d = geokName_d.includes('상관');
+    const isBijip_d = geokName_d.includes('겁')||geokName_d.includes('건록')||geokName_d.includes('양인');
+    const isIn_d = geokName_d.includes('정인')||geokName_d.includes('편인');
+    const isJeongGwan_d = geokName_d.includes('정관')||geokName_d.includes('편관');
+
+    // 가수·연예인: 상관格 아니면 패널티
+    if(!isSangGwan_d){
+      jobResults.forEach(j=>{
+        if(j.name==='가수·아이돌·연예인'||j.name==='배우·연극·뮤지컬'){
+          const pen = isBijip_d||isIn_d||isJongType ? -5 : -3;
+          j.score=Math.max(0,j.score+pen);
+        }
+      });
+    }
+    // 비겁格: 헬스·스포츠·e스포츠·뷰티(단순서비스) 하향
+    if(isBijip_d){
+      jobResults.forEach(j=>{
+        if(['헬스트레이너·피트니스','프로선수·감독·코치','경찰·군인·소방',
+            'e스포츠선수·게임해설','헤어·메이크업아티스트','퍼스널컬러리스트·코디'].includes(j.name))
+          j.score=Math.max(0,j.score-4);
+        if(['학원강사·인터넷강사','라이프코치·커리어코치'].includes(j.name))
+          j.score+=1;
+      });
+    }
+    // 정관·편관格: 공직·군경 부스트
+    if(isJeongGwan_d){
+      jobResults.forEach(j=>{
+        if(['공무원·행정직','판사·검사','경찰·군인·소방'].includes(j.name))
+          j.score+=2;
+      });
+    }
+    // 종格/가종格: 용신 오행 아닌 의료직 하향
+    if(isJongType && jongEl_dw!=null){
+      const MEDICAL=['한의사','내과의·외과의','치과의사','약사·임상약사','간호사·전문간호사'];
+      const isFireJong=jongEl_dw===1;
+      jobResults.forEach(j=>{
+        // 화종格 아닌데 의료(火·土·金 계열)가 올라오면 하향
+        if(!isFireJong && MEDICAL.includes(j.name))
+          j.score=Math.max(0,j.score-3);
+      });
+    }
+  }
 
   jobResults.sort((a,b)=>b.score-a.score);
 
@@ -4125,9 +4243,9 @@ function calcDwJobSignal(s, score, geok, dwG, dwJ) {
   };
 }
 
-/* ═══ 직업 추론 함수 — 7-Layer 패턴 매칭 ═══
-   결과를 알고 나서 갖다 붙이는 게 아니라,
-   格局·일주·오행 구조 자체에서 직업을 좁혀나가는 로직 */
+/* ═══ 직업 추론 함수 — 용신/기신 오행 기반 + 格局/신살/십성 정밀 보정 ═══
+   핵심 이론: 용신/기신 판별 결과를 직업 오행 친화도 점수에 그대로 적용
+   用神 오행 강한 직업 → 높은 점수 / 忌神 오행 강한 직업 → 낮은 점수 */
 function calcJobPrediction(s, score, geok) {
   const GEL_J=[0,0,1,1,2,2,3,3,4,4];
   const JEL_J=[4,2,0,0,2,1,1,2,3,3,2,4];
@@ -4139,6 +4257,38 @@ function calcJobPrediction(s, score, geok) {
   const dEl=GEL_J[dg];
   const total=score.reduce((a,b)=>a+b,0);
   const pct=v=>Math.round(v/total*100);
+
+  // ★ 핵심: 용신/기신 오행 가중치 테이블 생성
+  // 이 테이블이 직업 점수의 기반이 됨
+  const isOuter = ['HWA','ILHAENG','JONG','GAJONG'].includes(geok?.type);
+  const sg = calcShinGangYak(s, score);
+  const eokbu = isOuter ? geok : calcEokbuYongshin(s, score, sg, geok);
+
+  const yEl = eokbu?.yongshinEl ?? geok?.yongshinEl ?? null;  // 제1용신
+  const hEl = eokbu?.heeshinEl  ?? geok?.heeshinEl  ?? null;  // 희신
+  const hnEl= eokbu?.hanshinEl  ?? null;                       // 한신
+  const gEl = eokbu?.gishinEl   ?? geok?.gishinEl   ?? null;  // 기신
+  const guEl= eokbu?.gushinEl   ?? null;                       // 구신
+
+  // 오행별 직업 가중치 (용신=+3, 희신=+2, 한신=+1, 중립=0, 구신=-1, 기신=-2)
+  const elWeight=[0,0,0,0,0];
+  if(yEl!=null)  elWeight[yEl]  = 3;
+  if(hEl!=null)  elWeight[hEl]  = Math.max(elWeight[hEl], 2);
+  if(hnEl!=null) elWeight[hnEl] = Math.max(elWeight[hnEl], 1);
+  if(guEl!=null) elWeight[guEl] = Math.min(elWeight[guEl], -1);
+  if(gEl!=null)  elWeight[gEl]  = Math.min(elWeight[gEl], -2);
+
+  // ★ 용신/기신 기반 직업 기본 점수 계산 함수
+  // JOB_MAP의 el(오행 친화도) × elWeight(용신 가중치)
+  const calcElBaseScore = (jobEl) => {
+    let s_ = 0;
+    for(let i=0;i<5;i++){
+      if(jobEl[i]>0 && elWeight[i]!==0){
+        s_ += jobEl[i] * elWeight[i];
+      }
+    }
+    return s_;
+  };
 
   // 십성 계산
   function getSS_J(dg,tg){
@@ -4189,19 +4339,104 @@ function calcJobPrediction(s, score, geok) {
   // ── 직업 후보 점수표 ──────────────────────────────
   // [직업명, 점수, 근거]
   const jobScores = {};
-  const addJob = (name, pts, reason) => {
-    if(!jobScores[name]) jobScores[name]={score:0, reasons:[]};
-    jobScores[name].score += pts;
-    jobScores[name].reasons.push(reason);
+
+  // ★ 구 이름 → JOB_MAP 키 통일 매핑
+  const JOB_NAME_MAP = {
+    '역술·명리·점술':      '명리·역술·점술전문가',
+    '상담·심리·코칭':      '심리상담사·심리치료사',
+    '연구·학문·기술직':    '연구원·과학자',
+    '예술·창작':           '화가·일러스트레이터',
+    '의료·한의·치유':      '한의사',
+    'IT·프로그래밍':       '소프트웨어개발자',
+    '종교·철학·수행':      '종교인·명상지도자',
+    '교사·교수·강사':      '초중고교사',
+    '교사·교수':           '초중고교사',
+    '공무원·행정':         '공무원·행정직',
+    '출판·언론·작가':      '출판편집자·북디자이너',
+    '출판·언론·방송':      '기자·언론인',
+    '요리·외식·푸드':      '셰프·요리전문가',
+    '예술·공예·디자인':    '그래픽·UX디자이너',
+    '육아·복지·사회서비스':'사회복지사·케어매니저',
+    '작가·크리에이터':     '소설가·웹소설작가',
+    '예술·연예·방송':      '가수·아이돌·연예인',
+    '변호사·법조·컨설팅':  '변호사',
+    '강사·강연·유튜버':    '학원강사·인터넷강사',
+    '스타트업·창업':       '사업가·창업자',
+    '사업가·창업':         '사업가·창업자',
+    '무역·수출입·유통':    '외교관·국제공무원',
+    '금융·투자·부동산':    '투자전문가·펀드매니저',
+    '영업·마케팅':         '마케터·광고기획',
+    '회계·세무·재무':      '공인회계사·세무사',
+    '금융·은행':           '투자전문가·펀드매니저',
+    '군인·경찰·소방':      '경찰·군인·소방',
+    '스포츠·무술':         '프로선수·감독·코치',
+    '외과·응급의료':       '내과의·외과의',
+    '정치·리더십':         '판사·검사',
+    '의사·약사·의료':      '내과의·외과의',
+    '관리직·임원':         '경영컨설턴트',
+    '스포츠·체육':         '헬스트레이너·피트니스',
+    '법조인·검사·변호사':  '판사·검사',
+    '기술직·엔지니어':     '소프트웨어개발자',
+    '기획·콘텐츠·미디어':  '유튜버·크리에이터',
+    '뷰티·패션·스타일링':  '패션디자이너·스타일리스트',
+    '일러스트·디자인·시각예술': '화가·일러스트레이터',
+    '프리랜서·1인창작':    '소설가·웹소설작가',
+    '부동산·건설':         '부동산전문가',
   };
+
+  const addJob = (name, pts, reason) => {
+    const mapped = JOB_NAME_MAP[name] || name; // 매핑이 있으면 변환, 없으면 그대로
+    if(!jobScores[mapped]) jobScores[mapped]={score:0, reasons:[]};
+    jobScores[mapped].score += pts;
+    jobScores[mapped].reasons.push(reason);
+  };
+
+  // ★ Layer 0: 용신/기신 오행 기반 직업 기본 점수 (전체 JOB_MAP 일괄 적용)
+  // 이것이 직업 점수의 토대 — 용신 오행 강한 직업이 기본적으로 높은 점수를 받음
+  if(yEl != null) {
+    Object.entries(JOB_MAP).forEach(([name, v]) => {
+      const baseScore = calcElBaseScore(v.el);
+      if(baseScore !== 0) {
+        if(!jobScores[name]) jobScores[name]={score:0, reasons:[]};
+        jobScores[name].score += baseScore;
+        // 점수가 음수면 reasons에 기록
+        if(baseScore < 0) jobScores[name].reasons.push('기신오행역행');
+      }
+    });
+  }
+
+  // ── Layer 0.5: 시상格 보조 판정 반영 ──
+  // 시상格이 있으면 해당 格局의 직업 방향도 함께 반영
+  if(geok?.siSangGeok){
+    const ssName=geok.siSangGeok.name;
+    if(ssName.includes('정인')){
+      addJob('교사·교수·강사',   2, '시상정인格(학문·전문직)');
+      addJob('의료·한의·치유',   2, '시상정인格(전문자격)');
+      addJob('공무원·행정',      1, '시상정인格(안정조직)');
+    } else if(ssName.includes('편인')){
+      addJob('역술·명리·점술',   2, '시상편인格(비전탐구)');
+      addJob('연구·학문·기술직', 2, '시상편인格(심층연구)');
+    } else if(ssName.includes('정관')){
+      addJob('공무원·행정',      2, '시상정관格(공직)');
+      addJob('의사·약사·의료',   1, '시상정관格(전문직)');
+    } else if(ssName.includes('편관')){
+      addJob('군인·경찰·소방',   2, '시상편관格(강한투지)');
+      addJob('법조인·검사·변호사',1,'시상편관格(권력직)');
+    } else if(ssName.includes('양인')){
+      // 시상양인格은 제극 여부가 중요
+      if(geok.siSangGeok.hasJeguk){
+        addJob('군인·경찰·소방', 2, '시상양인格+제극(강력조직)');
+        addJob('외과·응급의료',  1, '시상양인格+제극(도전의료)');
+      }
+    }
+  }
 
   // ── Layer 1: 格局 기반 직업 ──
   if(isPyeoniン){
     addJob('역술·명리·점술',     2, '편인格(비전지식)');
     addJob('상담·심리·코칭',     2, '편인格(독창적 전문성)');
-    addJob('연구·학문·기술직',   2, '편인格(탐구)');
-    addJob('예술·창작',          1, '편인格(독창성)');
-    addJob('의료·한의·치유',     1, '편인格(전문기술)');
+    addJob('연구·학문·기술직',   3, '편인格(심층탐구)');
+    addJob('의료·한의·치유',     2, '편인格(전문의료자격)');
     addJob('IT·프로그래밍',      1, '편인格(기술습득)');
     addJob('종교·철학·수행',     1, '편인格(비전사상)');
   }
@@ -4421,14 +4656,24 @@ function calcJobPrediction(s, score, geok) {
     const yeonJi = jiArr[0]; // 연지
 
     // ① 도화살(桃花殺) — 子卯午酉
-    // 연지 또는 일지에 있을 때 강함
-    const DOHA = [0,3,6,9]; // 子卯午酉
+    const DOHA = [0,3,6,9];
     const dohaCnt = jiArr.filter(j=>DOHA.includes(j)).length;
-    const dohaStrong = DOHA.includes(jiArr[0]) || DOHA.includes(jiArr[2]); // 연지/일지
+    const dohaStrong = DOHA.includes(jiArr[0]) || DOHA.includes(jiArr[2]);
     if(dohaCnt >= 1){
-      addJob('예술·연예·방송',            dohaStrong?2:1, `도화살→매력·무대·이성인기`);
-      addJob('일러스트·디자인·시각예술',  dohaStrong?2:1, `도화살→감성·미적표현`);
-      addJob('뷰티·패션·스타일링',        1,               `도화살→외모·매력`);
+      // 비겁格(월겁格·건록格·양인格) 또는 정관格이면 연예보다 강연·표현 전문직
+      const isBijipOrJeongGwan = geokName.includes('겁') || geokName.includes('건록') || 
+                                  geokName.includes('양인') || geokName.includes('정관') ||
+                                  geokName.includes('정인') || geokName.includes('편인');
+      if(isBijipOrJeongGwan){
+        // 도화 에너지 → 강의·강연·표현 전문직으로 승화
+        addJob('학원강사·인터넷강사',  dohaStrong?2:1, `도화살→표현력·매력적강의`);
+        addJob('라이프코치·커리어코치',dohaStrong?2:1, `도화살→대인매력·소통`);
+        addJob('일러스트·디자인·시각예술', 1, `도화살→감성·미적표현`);
+      } else {
+        addJob('가수·아이돌·연예인',     dohaStrong?2:1, `도화살→매력·무대·이성인기`);
+        addJob('일러스트·디자인·시각예술',dohaStrong?2:1, `도화살→감성·미적표현`);
+        addJob('패션디자이너·스타일리스트', 1, `도화살→외모·매력`);
+      }
     }
 
     // ② 역마살(驛馬殺) — 연지 삼합기준 역마지
@@ -4476,6 +4721,15 @@ function calcJobPrediction(s, score, geok) {
       addJob('교사·교수·강사',   2, `문창귀인→학문·글쓰기·교육`);
       addJob('작가·크리에이터',  2, `문창귀인→문서·창작`);
       addJob('출판·언론·방송',   1, `문창귀인→언어표현`);
+      // 문창귀인 + 인성 있으면 → 전문자격 의료직
+      if(inPct >= 15){
+        // 한의사: 편인格 + 인성 20% 이상일 때만 강하게 올림
+        // 그 외엔 일반 의료·전문자격직으로만 반영
+        if(isPyeoniン && inPct >= 20){
+          addJob('한의사',           2, `문창귀인+편인格+인성→심층전문자격`);
+        }
+        addJob('의사·약사·의료',   1, `문창귀인+인성→전문자격`);
+      }
     }
 
     // ⑥ 천을귀인(天乙貴人) — 일간 기준
@@ -4487,6 +4741,15 @@ function calcJobPrediction(s, score, geok) {
     if(hasCheonul){
       addJob('상담·심리·코칭',   1, `천을귀인→귀인·전문직`);
       addJob('의료·한의·치유',   1, `천을귀인→귀인도움·전문`);
+      // 천을귀인 + 인성 있으면 → 전문자격 의료직
+      if(inPct >= 15){
+        // 한의사: 편인格 + 인성 20% 이상일 때만
+        if(isPyeoniン && inPct >= 20){
+          addJob('한의사',           2, `천을귀인+편인格+인성→귀인도움 전문의료`);
+        } else {
+          addJob('의료·한의·치유',   1, `천을귀인+인성→전문의료 방향`);
+        }
+      }
     }
 
     // ⑦ 양인살(羊刃殺) — 일간 기준 (극강·도전·의료·군경)
@@ -4520,9 +4783,100 @@ function calcJobPrediction(s, score, geok) {
       addJob('종교·철학·수행', 1, `공망→비물질·정신세계`);
     }
   }
+  // ── 종格/가종格 직업 보정 ──
+  // 핵심 이론: 종格이 강한 사주에서 일간 비겁 강화 직업군은
+  //   대운에서 일간이 강해지더라도 종格에 역행하면 오히려 고통
+  //   → 군경/스포츠/비겁 기반 직업은 하향 보정
+  const isJongGeok = geokName.includes('종') || geok?.type==='JONG' || geok?.type==='GAJONG';
+  if(isJongGeok){
+    const jongEl2 = geok?.domEl ?? geok?.jongEl ?? null;
+    // 종格 방향에 역행하는 직업군 (비겁/인성 강화 = 종格 방해)
+    // 종格 방향에 역행하는 직업군 — 실제 addJob에서 쓰는 이름과 일치시켜야 함
+    const JONG_PENALTY_JOBS = [
+      '군인·경찰·소방', '스포츠·체육', '스포츠·무술',
+      '외과·응급의료', '정치·리더십', '영업·마케팅',
+    ];
+    JONG_PENALTY_JOBS.forEach(jobName=>{
+      if(jobScores[jobName]){
+        jobScores[jobName].score = Math.max(0, jobScores[jobName].score - 3);
+        jobScores[jobName].reasons.push('종格 역행 보정(-3)');
+      }
+    });
+    // 종格 용신 방향 직업 추가 부스트
+    if(jongEl2 !== null){
+      const ENM_J2=['木','火','土','金','水'];
+      const JONG_BOOST_MAP = {
+        1: ['예술·연예·방송','일러스트·디자인·시각예술','화가·일러스트레이터','강사·강연·유튜버','웹툰작가·만화가'], // 火 종
+        0: ['교수·강사·인터넷강사','작가·크리에이터','기획·콘텐츠·미디어','교사·교수·강사'], // 木 종
+        4: ['명리·역술·점술전문가','연구원·과학자','심리상담사·심리치료사','AI·데이터사이언티스트'], // 水 종
+        3: ['금융·투자·부동산','공인회계사·세무사','기술직·엔지니어','소프트웨어개발자'], // 金 종
+        2: ['부동산전문가','사업가·창업자','건축사·인테리어디자이너','셰프·요리전문가'], // 土 종
+      };
+      const boostJobs = JONG_BOOST_MAP[jongEl2] || [];
+      boostJobs.forEach(jobName=>{
+        if(jobScores[jobName]){
+          jobScores[jobName].score += 1;
+        }
+      });
+    }
+  }
+
+  // ── 格局별 직업 적합도 보정 ──
+  // 格局이 맞지 않는 직업은 기반점수가 높아도 패널티
+  {
+    const isSangGwanGeok = geokName.includes('상관');
+    const isBijipGeok2 = geokName.includes('겁') || geokName.includes('건록') || geokName.includes('양인');
+    const isPyeonInGeok = geokName.includes('편인');
+    const isJeongGwanGeok = geokName.includes('정관') || geokName.includes('편관');
+    const isInGeok = geokName.includes('정인') || geokName.includes('편인');
+
+    // 가수·연예인: 상관格이 핵심 — 비겁格/인성格이면 강하게 하향
+    if(!isSangGwanGeok){
+      if(jobScores['가수·아이돌·연예인']){
+        const penalty = isBijipGeok2||isInGeok ? -5 : -3;
+        jobScores['가수·아이돌·연예인'].score = Math.max(0, jobScores['가수·아이돌·연예인'].score + penalty);
+      }
+      if(jobScores['배우·연극·뮤지컬']){
+        jobScores['배우·연극·뮤지컬'].score = Math.max(0, jobScores['배우·연극·뮤지컬'].score - 3);
+      }
+    }
+    // 편인格: 역술·연구·전문직 부스트 + 단순 창작 패널티
+    if(isPyeonInGeok){
+      ['명리·역술·점술전문가','연구원·과학자','심리상담사·심리치료사',
+       '내과의·외과의','한의사','치과의사','약사·임상약사'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score += 2;
+      });
+      // 편인格에서 단순 창작·엔터테인먼트는 안 맞음
+      ['웹툰작가·만화가','유튜버·크리에이터','화가·일러스트레이터',
+       '영화감독·방송PD','음악가·작곡가','가수·아이돌·연예인'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score = Math.max(0, jobScores[n].score - 4);
+      });
+    }
+    // 비겁格: 강연·표현·독립적 전문직 부스트
+    if(isBijipGeok2){
+      ['학원강사·인터넷강사','라이프코치·커리어코치','사업가·창업자'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score += 2;
+      });
+      // 비겁格은 체력·스포츠보다 전문·표현 직업이 더 맞음
+      ['헬스트레이너·피트니스','프로선수·감독·코치','경찰·군인·소방'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score = Math.max(0, jobScores[n].score - 3);
+      });
+      // 의료·전문직 부스트 (비겁格 신강 → 극을 받는 관살 계열 직업 = 전문 독립직)
+      ['한의사','내과의·외과의','치과의사','약사·임상약사'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score += 1;
+      });
+    }
+    // 정관·편관格: 공직·군경 부스트
+    if(isJeongGwanGeok){
+      ['공무원·행정직','판사·검사','경찰·군인·소방'].forEach(n=>{
+        if(jobScores[n]) jobScores[n].score += 2;
+      });
+    }
+  }
+
   const sorted = Object.entries(jobScores)
     .sort((a,b)=>b[1].score-a[1].score)
-    .slice(0,6); // 상위 6개
+    .slice(0,6);
 
   if(sorted.length===0) return null;
 
@@ -4536,27 +4890,88 @@ function calcJobPrediction(s, score, geok) {
   const JH_DESC=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
   const ENM_DESC=['木','火','土','金','水'];
 
-  // 格局 방향 문장
+  // 格局 방향 문장 — 키는 격국 이름에 포함되는 한글로
   const GEOK_DIR = {
-    '편인格': `월지에 뿌리한 <strong>편인格</strong>으로, 남들이 걷지 않는 길을 혼자 파고드는 독창적인 전문가 기질입니다. 정해진 틀보다는 본인만의 방식으로 깊이 탐구하는 일이 맞습니다.`,
-    '정인格': `<strong>정인格</strong>으로 학문·교육·안정적 전문직에 자연스럽게 어울립니다. 체계적으로 배운 것을 누군가에게 전달하는 역할에서 빛을 발합니다.`,
-    '식신格': `<strong>식신格</strong>으로 무언가를 만들고 표현하고 나누는 일에 천부적인 재능이 있습니다. 사람들에게 즐거움·맛·아름다움을 주는 분야가 잘 맞습니다.`,
-    '상관格': `<strong>상관格</strong>으로 틀에 박힌 조직보다 자유롭게 자기 생각을 펼칠 수 있는 환경이 필요합니다. 창의성과 언변이 무기인 직업에서 두각을 나타냅니다.`,
-    '편재格': `<strong>편재格</strong>으로 사람과 돈과 정보가 흐르는 곳에서 에너지가 살아납니다. 움직이고 연결하고 거래하는 사업·무역·유통 계열이 체질에 맞습니다.`,
-    '정재格': `<strong>정재格</strong>으로 성실하게 쌓아가는 재물 관리에 강점이 있습니다. 꼼꼼하고 신뢰를 주는 분야 — 재무·회계·안정적 사업이 잘 맞습니다.`,
-    '편관格': `<strong>편관格</strong>으로 강한 투지와 도전정신이 핵심 에너지입니다. 압박감 속에서도 흔들리지 않는 강인함이 필요한 군경·스포츠·도전적 직종에서 두각을 나타냅니다.`,
-    '정관格': `<strong>정관格</strong>으로 사회적 규율과 명예를 중시하는 공직·전문직 기질입니다. 체계 안에서 인정받으며 능력을 발휘하는 구조가 잘 맞습니다.`,
+    '편인격': `월지에 뿌리한 <strong>편인格</strong>으로, 남들이 걷지 않는 길을 혼자 파고드는 독창적인 전문가 기질입니다. 정해진 틀보다는 본인만의 방식으로 깊이 탐구하는 일이 맞습니다.`,
+    '정인격': `<strong>정인格</strong>으로 학문·교육·안정적 전문직에 자연스럽게 어울립니다. 체계적으로 배운 것을 누군가에게 전달하는 역할에서 빛을 발합니다.`,
+    '식신격': `<strong>식신格</strong>으로 무언가를 만들고 표현하고 나누는 일에 천부적인 재능이 있습니다. 사람들에게 즐거움·맛·아름다움을 주는 분야가 잘 맞습니다.`,
+    '상관격': `<strong>상관格</strong>으로 틀에 박힌 조직보다 자유롭게 자기 생각을 펼칠 수 있는 환경이 필요합니다. 창의성과 언변이 무기인 직업에서 두각을 나타냅니다.`,
+    '편재격': `<strong>편재格</strong>으로 사람과 돈과 정보가 흐르는 곳에서 에너지가 살아납니다. 움직이고 연결하고 거래하는 사업·무역·유통 계열이 체질에 맞습니다.`,
+    '정재격': `<strong>정재格</strong>으로 성실하게 쌓아가는 재물 관리에 강점이 있습니다. 꼼꼼하고 신뢰를 주는 분야 — 재무·회계·안정적 사업이 잘 맞습니다.`,
+    '편관격': `<strong>편관格</strong>으로 강한 투지와 도전정신이 핵심 에너지입니다. 압박감 속에서도 흔들리지 않는 강인함이 필요한 군경·스포츠·도전적 직종에서 두각을 나타냅니다.`,
+    '정관격': `<strong>정관格</strong>으로 사회적 규율과 명예를 중시하는 공직·전문직 기질입니다. 체계 안에서 인정받으며 능력을 발휘하는 구조가 잘 맞습니다.`,
+    '월겁격': `<strong>월겁格</strong>으로 강인한 에너지를 바탕으로 자신만의 방식을 고집하는 독립적 전문가 기질입니다. 자신의 힘으로 길을 개척하는 분야에서 빛납니다.`,
+    '건록격': `<strong>건록格</strong>으로 안정적인 전문성을 바탕으로 자립하는 구조입니다. 꾸준히 쌓아 전문 영역에서 확실한 자리를 만드는 스타일입니다.`,
+    '양인격': `<strong>양인格</strong>으로 강렬한 집중력과 결단력이 핵심 무기입니다. 한 분야에 깊이 파고들어 최고가 되는 방향이 맞습니다.`,
+    // ─ 화格 (5가지) ─
+    '화목격': `<strong>丁壬化木格</strong>으로 木의 생장·창조 에너지로 온전히 변화한 구조입니다. 성장하고 뻗어나가는 기운 — 교육·창작·생명 분야에서 탁월함을 발휘합니다.`,
+    '화화격': `<strong>戊癸化火格</strong>으로 火의 열정·표현 에너지로 변화한 구조입니다. 드러나고 빛나는 분야 — 예술·방송·감성 전문직에서 두각을 나타냅니다.`,
+    '화토격': `<strong>甲己化土格</strong>으로 土의 포용·중재 에너지로 변화한 구조입니다. 배양하고 안정시키는 분야 — 의료·복지·교육·행정에서 빛을 발합니다.`,
+    '화금격': `<strong>乙庚化金格</strong>으로 金의 결단·정밀 에너지로 변화한 구조입니다. 판단하고 정제하는 분야 — 법조·금융·기술 전문직이 잘 맞습니다.`,
+    '화수격': `<strong>丙辛化水格</strong>으로 水의 지혜·탐구 에너지로 변화한 구조입니다. 깊이 파고드는 분야 — 연구·역술·철학·심층전문직에서 두각을 나타냅니다.`,
+    // ─ 일행득기格 (5가지) ─
+    '곡직격': `<strong>곡직格(曲直格)</strong>으로 木 에너지가 순수하게 응집된 구조입니다. 성장·교육·생명·창조의 방향으로 에너지를 집중할 때 탁월한 결과가 납니다.`,
+    '염상격': `<strong>염상格(炎上格)</strong>으로 火 에너지가 순수하게 응집된 구조입니다. 표현·예술·열정·감성 분야에서 타오르는 듯한 역량을 발휘합니다.`,
+    '가색격': `<strong>가색格(稼穡格)</strong>으로 土 에너지가 순수하게 응집된 구조입니다. 포용·배양·안정의 분야 — 의료·복지·교육·행정에서 깊은 역량을 발휘합니다.`,
+    '종혁격': `<strong>종혁格(從革格)</strong>으로 金 에너지가 순수하게 응집된 구조입니다. 결단·정밀·개혁의 방향 — 법조·금융·기술 전문직에서 강한 역량을 발휘합니다.`,
+    '윤하격': `<strong>윤하格(潤下格)</strong>으로 水 에너지가 순수하게 응집된 구조입니다. 지혜·탐구·유연함의 방향 — 연구·역술·철학·심층전문직에서 두각을 나타냅니다.`,
+    // ─ 종格 추가 ─
+    '종강격': `<strong>종강格(從强格)</strong>으로 비겁·인성이 압도적으로 강한 구조입니다. 자신의 에너지를 설기·표현하는 방향으로 흘려보낼 때 가장 건강하고 성과가 납니다.`,
+    '종약격': `<strong>종약格(從弱格)</strong>으로 인성 에너지가 압도적으로 강한 구조입니다. 배움·전문성·학문의 흐름에 올라타는 방향이 가장 자연스럽습니다.`,
+    '가종살격': `<strong>가종살格</strong>으로 관살 에너지가 압도적이지만 완전히 종하지 못한 구조입니다. 억누르려 하면 더 힘들어지고, 강한 흐름을 인정하고 그 방향으로 활동할 때 안정됩니다.`,
+    '가종재격': `<strong>가종재格</strong>으로 재성이 강하지만 완전히 종하지 못한 구조입니다. 재물·사업의 흐름에 맞춰가되 무리하지 않는 것이 현명합니다.`,
+    '가종격': `<strong>가종格</strong>으로 완전히 종하지는 못하지만 강한 오행의 흐름을 따라가는 구조입니다. 무리하게 역행하기보다 자연스러운 방향성에 에너지를 집중할 때 성과가 납니다.`,
+    '종살격': `<strong>종살格</strong>으로 강한 관살 에너지의 흐름을 거스르지 않고 타는 구조입니다. 억누르려 하면 오히려 힘들어지고, 흐름에 맡길 때 탁월함이 나옵니다.`,
+    '종재격': `<strong>종재格</strong>으로 재성 에너지의 흐름에 온전히 올라타는 구조입니다. 재물·사업·정보의 흐름 속에서 자연스럽게 두각을 드러냅니다.`,
+    '종아격': `<strong>종아格</strong>으로 표현·창조의 에너지를 거스르지 않는 구조입니다. 만들고 표현하고 공유하는 방향으로 삶이 흘러갈 때 가장 빛납니다.`,
   };
-  const geokDirText = Object.keys(GEOK_DIR).find(k=>geokName.includes(k))
-    ? GEOK_DIR[Object.keys(GEOK_DIR).find(k=>geokName.includes(k))]
-    : `<strong>${geokName}</strong> 구조로 독특한 직업적 방향성을 가집니다.`;
+  const geokNameLower = geokName.toLowerCase();
+  // 화格·일행득기格은 한자+한글 조합 — 별도 매핑
+  const HWA_KEY_MAP = {
+    '丁壬化木格':'화목격','戊癸化火格':'화화격','甲己化土格':'화토격',
+    '乙庚化金格':'화금격','丙辛化水格':'화수격',
+    '곡직격':'곡직격','염상격':'염상격','가색격':'가색격',
+    '종혁격':'종혁격','윤하격':'윤하격',
+  };
+  const hwaKey = Object.keys(HWA_KEY_MAP).find(k=>geokName.includes(k));
+  const lookupName = hwaKey ? HWA_KEY_MAP[hwaKey] : geokNameLower;
+  const matchedKey = Object.keys(GEOK_DIR)
+    .filter(k=>lookupName.includes(k)||geokNameLower.includes(k))
+    .sort((a,b)=>b.length-a.length)[0]; // 가장 긴 키 우선
+  const geokDirText = matchedKey
+    ? GEOK_DIR[matchedKey]
+    : `<strong>${geokName}</strong> 구조의 독특한 기질을 바탕으로 자신만의 방향성을 만들어갑니다.`;
 
-  // 오행 과다 문장
+  // 시상格이 있으면 주格 통변에 보완 문장 추가
+  const siSangGeokObj = geok?.siSangGeok;
+  const siSangAddText = siSangGeokObj
+    ? ` 단, 시지에 <strong>${siSangGeokObj.name}</strong>이 공존하여 ${
+        siSangGeokObj.name.includes('정인')||siSangGeokObj.name.includes('편인')
+          ? '학문·전문성·조직 기반의 안정적 색깔이 삶에 강하게 나타납니다.'
+          : siSangGeokObj.name.includes('정관')||siSangGeokObj.name.includes('편관')
+            ? '책임과 권위에 대한 감각이 병행되어 전문 조직에서 두각을 나타냅니다.'
+            : '시상格의 에너지가 삶에 함께 작동합니다.'
+      }`
+    : '';
+
+  // 오행 과다 문장 — 종格/가종格은 오행 과다 해석이 다름 (종하는 오행이 많은 게 정상)
+  const isJongGeok_puri = ['JONG','GAJONG','HWA','ILHAENG'].includes(geok?.type);
   let elCharText = '';
-  if(isGwanOver) elCharText += `관살(${ENM_DESC[gwanEl]})이 ${gwanPct}%로 강하게 작동하여, 끊임없이 타인의 이야기와 고민을 받아내는 구조입니다. `;
-  if(isSikOver)  elCharText += `식상(${ENM_DESC[sikEl]})이 ${sikPct}%로 풍부하여, 자신의 생각과 감성을 밖으로 표현하려는 욕구가 강합니다. `;
-  if(isJaeOver)  elCharText += `재성(${ENM_DESC[jaeEl]})이 ${jaePct}%로 강해 재물을 직접 만들고 다루는 사업·유통 기질이 있습니다. `;
-  if(isInOver)   elCharText += `인성(${ENM_DESC[inEl]})이 ${inPct}%로 강하여, 깊이 배우고 탐구하는 학문·전문성 기질이 두드러집니다. `;
+  if(!isJongGeok_puri){
+    // 내격만 오행 과다 통변 적용
+    if(isGwanOver){
+      if(geokName.includes('정관')||geokName.includes('편관')){
+        elCharText += `관살(${ENM_DESC[gwanEl]})이 ${gwanPct}%로 강하여, 조직·규율·권위와 관련된 분야에서 에너지가 잘 발휘됩니다. `;
+      } else if(geokName.includes('상관')||geokName.includes('식신')){
+        elCharText += `관살(${ENM_DESC[gwanEl]})이 ${gwanPct}%로 강하게 작동하여, 높은 기준과 책임감이 직업의 핵심 동력이 됩니다. `;
+      } else {
+        elCharText += `관살(${ENM_DESC[gwanEl]})이 ${gwanPct}%로 강하여, 책임과 역할에 대한 감각이 예리하게 작동합니다. `;
+      }
+    }
+    if(isSikOver)  elCharText += `식상(${ENM_DESC[sikEl]})이 ${sikPct}%로 풍부하여, 자신의 생각과 감성을 밖으로 표현하려는 욕구가 강합니다. `;
+    if(isJaeOver)  elCharText += `재성(${ENM_DESC[jaeEl]})이 ${jaePct}%로 강해 재물을 직접 만들고 다루는 사업·유통 기질이 있습니다. `;
+    if(isInOver)   elCharText += `인성(${ENM_DESC[inEl]})이 ${inPct}%로 강하여, 깊이 배우고 탐구하는 학문·전문성 기질이 두드러집니다. `;
+  }
 
   // 일주 기질 문장
   const ILJU_CHAR = {
@@ -4580,18 +4995,27 @@ function calcJobPrediction(s, score, geok) {
   // 직업군 좁히기 문장
   const top1Name = topJobs[0]?.name || '';
   const top2Name = topJobs[1]?.name || '';
-  let jobNarrow = '';
-  if(top1Name && top2Name){
-    jobNarrow = `이 구조를 종합하면 <strong>${top1Name}</strong> 계열이 가장 유력하고, <strong>${top2Name}</strong> 방향도 충분한 적성이 있습니다.`;
-  } else if(top1Name){
-    jobNarrow = `이 구조를 종합하면 <strong>${top1Name}</strong> 계열에서 두각을 나타낼 가능성이 높습니다.`;
-  }
 
-  // 독립/조직 여부
-  const isIndependent = isPyeoniン || isSanggwan || isGeopjaeG;
-  const independText = isIndependent
-    ? '조직보다는 <strong>본인만의 방식으로 독립적으로 활동하는 형태</strong>가 훨씬 잘 맞습니다.'
-    : '체계적인 조직 안에서 역할과 권한이 명확할 때 더 잘 발휘됩니다.';
+  // 독립/조직 여부 — 역마살·화개살도 독립활동 신호
+  // 단, 시상정인格·시상건록格이 있으면 조직 안정형으로 override
+  const YEOKMA_IND={0:2,4:2,8:2,2:8,6:8,10:8,1:11,5:11,9:11,3:5,7:5,11:5};
+  const hasYeokmaIndep = YEOKMA_IND[jiArr[0]]!==undefined && jiArr.some(j=>j===YEOKMA_IND[jiArr[0]]);
+  const hasHwagaeIndep = jiArr.filter(j=>[4,10,1,7].includes(j)).length>=1;
+  // 시상格이 인성·건록格이면 조직 안정형 (엘리트 전문직 조직)
+  const siSangName = geok?.siSangGeok?.name || '';
+  const siSangIsStable = siSangName.includes('정인') || siSangName.includes('정관') ||
+                         siSangName.includes('건록') || siSangName.includes('편인');
+  const isIndependent = !siSangIsStable && (isPyeoniン || isSanggwan || isGeopjaeG
+    || hasYeokmaIndep || hasHwagaeIndep);
+  const independText = siSangIsStable
+    ? `시상${siSangName.includes('정인')?'정인':'정관'}格의 영향으로 <strong>체계적인 전문 조직 안에서 역할과 전문성을 쌓는 구조</strong>가 잘 맞습니다. 이동성이 있더라도 안정된 기반 위에서 움직이는 방식이 효과적입니다.`
+    : isIndependent
+      ? (hasYeokmaIndep && hasHwagaeIndep)
+        ? '역마·화개살의 조합으로 <strong>조직에 얽매이지 않고 이동하며 독자적으로 활동하는 형태</strong>가 훨씬 잘 맞습니다.'
+        : hasYeokmaIndep
+          ? '<strong>이동하고 변화하는 환경</strong>에서 더 빛나는 사주로, 한곳에 고정된 조직보다 자유롭게 움직이는 방식이 맞습니다.'
+          : '조직보다는 <strong>본인만의 방식으로 독립적으로 활동하는 형태</strong>가 훨씬 잘 맞습니다.'
+      : '체계적인 조직 안에서 역할과 권한이 명확할 때 더 잘 발휘됩니다.';
 
   // ── Layer 6: 일간 천간 특성 → 직업 소분류 ──
   // 같은 오행이라도 음양에 따라 직업 방향이 달라짐
@@ -4675,16 +5099,80 @@ function calcJobPrediction(s, score, geok) {
   const sinsalText = sinsalHints.length ? sinsalHints.join(' ') : '';
   const ilganTraitText = ILGAN_TRAIT[dg] || '';
 
-  const puri = [geokDirText, elCharText, iljuChar, ilganTraitText, sinsalText, jobNarrow, dwJobSignal, independText]
+  // ★ jobNarrow: 직업명 대신 카테고리 방향으로 표현
+  // puri는 jobNarrow(topCats 기반) 계산 후 조합 → return 블록 직전에서 조합
+
+  // ★ 직업 방향성 카테고리 집계
+  const JOB_TO_CAT_R = {
+    '화가·일러스트레이터':'창의·예술·표현','웹툰작가·만화가':'창의·예술·표현',
+    '그래픽·UX디자이너':'창의·예술·표현','가수·아이돌·연예인':'창의·예술·표현',
+    '배우·연극·뮤지컬':'창의·예술·표현','영화감독·방송PD':'창의·예술·표현',
+    '소설가·웹소설작가':'창의·예술·표현','음악가·작곡가':'창의·예술·표현',
+    '패션디자이너·스타일리스트':'창의·예술·표현','공예가·도예가':'창의·예술·표현',
+    '유튜버·크리에이터':'창의·예술·표현','기자·언론인':'창의·예술·표현',
+    '출판편집자·북디자이너':'창의·예술·표현','마케터·광고기획':'창의·예술·표현',
+    '내과의·외과의':'전문자격·의료·학문','정신건강의학과':'전문자격·의료·학문',
+    '한의사':'전문자격·의료·학문','치과의사':'전문자격·의료·학문',
+    '약사·임상약사':'전문자격·의료·학문','간호사·전문간호사':'전문자격·의료·학문',
+    '물리치료사·재활치료':'전문자격·의료·학문','의료기사(방사선·임상병리)':'전문자격·의료·학문',
+    '연구원·과학자':'전문자격·의료·학문','교수(인문·사회)':'전문자격·의료·학문',
+    '교수(이공·의학)':'전문자격·의료·학문','바이오·생명공학자':'전문자격·의료·학문',
+    '수의사·동물전문가':'전문자격·의료·학문','AI·데이터사이언티스트':'전문자격·의료·학문',
+    '소프트웨어개발자':'전문자격·의료·학문','보안·해킹전문가':'전문자격·의료·학문',
+    '초중고교사':'교육·강의·상담','학원강사·인터넷강사':'교육·강의·상담',
+    '에듀테크·교육기획':'교육·강의·상담','심리상담사·심리치료사':'교육·강의·상담',
+    '사회복지사·케어매니저':'교육·강의·상담','라이프코치·커리어코치':'교육·강의·상담',
+    '사업가·창업자':'비즈니스·금융·사업','투자전문가·펀드매니저':'비즈니스·금융·사업',
+    '공인회계사·세무사':'비즈니스·금융·사업','경영컨설턴트':'비즈니스·금융·사업',
+    '부동산전문가':'비즈니스·금융·사업','핀테크·블록체인전문가':'비즈니스·금융·사업',
+    '판사·검사':'법조·공직·군경','변호사':'법조·공직·군경',
+    '공무원·행정직':'법조·공직·군경','경찰·군인·소방':'법조·공직·군경',
+    '외교관·국제공무원':'법조·공직·군경','노무사·세무사·변리사':'법조·공직·군경',
+    '건축사·인테리어디자이너':'기술·공학·건축','환경·기후전문가':'기술·공학·건축',
+    '명리·역술·점술전문가':'역술·철학·영성','철학·인문학강사':'역술·철학·영성',
+    '역사학자·고고학자':'역술·철학·영성','종교인·명상지도자':'역술·철학·영성',
+    '셰프·요리전문가':'서비스·라이프스타일','헤어·메이크업아티스트':'서비스·라이프스타일',
+    '웨딩플래너·이벤트기획':'서비스·라이프스타일','여행작가·여행크리에이터':'서비스·라이프스타일',
+    '퍼스널컬러리스트·코디':'서비스·라이프스타일','헬스트레이너·피트니스':'서비스·라이프스타일',
+    '프로선수·감독·코치':'서비스·라이프스타일','e스포츠선수·게임해설':'서비스·라이프스타일',
+  };
+  const CAT_ICON_R = {
+    '창의·예술·표현':'🎨',
+    '전문자격·의료·학문':'🔬',
+    '교육·강의·상담':'📚',
+    '비즈니스·금융·사업':'💼',
+    '법조·공직·군경':'⚖️',
+    '기술·공학·건축':'🔧',
+    '역술·철학·영성':'🔮',
+    '서비스·라이프스타일':'✨',
+  };
+  const catScores={};
+  [...topJobs,...secondaryJobs.map(n=>({name:n,score:1}))].forEach(j=>{
+    const cat=JOB_TO_CAT_R[j.name]||null;
+    if(cat) catScores[cat]=(catScores[cat]||0)+(j.score||1);
+  });
+  const topCats=Object.entries(catScores).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([c])=>c);
+
+  // ★ jobNarrow: topCats 기반 통변 문장 (topCats 계산 후에 위치해야 함)
+  let jobNarrow = '';
+  if(topCats.length >= 2){
+    jobNarrow = `이 구조를 종합하면 <strong>${topCats[0]}</strong> 방향이 가장 적합하고, <strong>${topCats[1]}</strong> 계열도 잘 맞는 적성입니다.`;
+  } else if(topCats.length === 1){
+    jobNarrow = `이 구조를 종합하면 <strong>${topCats[0]}</strong> 분야에서 두각을 나타낼 가능성이 높습니다.`;
+  }
+
+  const puri = [geokDirText+siSangAddText, elCharText, iljuChar, ilganTraitText, sinsalText, jobNarrow, dwJobSignal, independText]
     .filter(Boolean).join(' ');
 
   return {
     top1: topJobs[0],
     top3: topJobs,
     secondary: secondaryJobs,
+    topCats,   // ★ 직업 방향성 카테고리
+    catIcon: CAT_ICON_R,
     gwanPct, sikPct, jaePct, inPct,
     geokName,
-    puri  // 통변 풀이 텍스트
+    puri
   };
 }
 
@@ -5074,7 +5562,7 @@ function calcNaeGyeok(s,score){
   const dg=s[2].g,mJi=s[1].j;
   // 왕지(子午卯酉)는 지장간 [0]이 본기, 나머지는 [2]가 본기
   const WANG_SET = new Set([0,3,6,9]);
-  const bPos = WANG_SET.has(mJi) ? 0 : 2;
+  const bPos = 2; // 본기는 항상 인덱스 2 (왕지 포함 모든 지지)
   const bongiGan = JJG_DETAIL[mJi][bPos] || JJG_DETAIL[mJi][1] || JJG_DETAIL[mJi][0];
   const bongiIdx=GH_IDX[bongiGan];
   const ss=getSS(dg,bongiIdx);
@@ -5303,7 +5791,76 @@ function calcNaeGyeok(s,score){
       + `<br><span style="font-size:11px;color:#b07d1a;">⚠ 방해요소(비겁·인성)가 완전한 종(從)을 막으므로, ${ENM_S6[tendencyGeok.el]} 오행 대운에서 잘 풀리지만 비겁·인성 운에서 흔들릴 수 있습니다.</span>`;
   }
 
-  return{type:'NAE',name,ss,bongiGan,bongiEl,touChul,isPagyeok,pagyeokDesc,geokStrength,tendencyGeok,isJongSeong,jongEl,mJi};
+  // ★ 시상격(時上格) 보조 판정 ★
+  // 이론: 월지로 格을 완전히 정하지 못하거나 格이 약할 때
+  // 시지에 양인·건록이 있으면 시상격으로 보조 판단
+  // 시상양인格: 시지가 일간의 양인지 → 화(火)로 제극해야 쓸 수 있음
+  // 시상건록格: 시지가 일간의 건록지
+  let siSangGeok = null;
+  {
+    const siJi = s[3].j; // 시주 지지
+    const siGan = s[3].g; // 시주 천간
+    // 양인지: 甲→卯(3), 丙戊→午(6), 庚→酉(9), 壬→子(0)
+    const YANGIN_JI = {0:3, 2:6, 4:6, 6:9, 8:0};
+    // 건록지: 甲→寅(2), 丙→巳(5), 戊→巳(5), 庚→申(8), 壬→亥(11), 乙→卯(3), 丁→午(6), 己→午(6), 辛→酉(9), 癸→子(0)
+    const GEONGROK_JI = {0:2, 1:3, 2:5, 3:6, 4:5, 5:6, 6:8, 7:9, 8:11, 9:0};
+    const yanginJi = YANGIN_JI[dg];
+    const geongrokJi = GEONGROK_JI[dg];
+
+    // 시지가 양인지이고, 월지格이 약하거나 파격일 때 (양인은 格 강도 무관 항상 체크)
+    if(yanginJi !== undefined && siJi === yanginJi){
+      // 화(제극 오행) 천간에 있는지 확인
+      const YANGIN_JEGUK_EL = 1; // 火가 金 양인을 제극 (일반적으로 관살이 양인 제극)
+      // 실제로는 양인의 관살 오행 = 양인 오행을 극하는 오행
+      const yanginEl = JEL[yanginJi]; // 양인지의 오행
+      const jegukEl = GEUK[yanginEl]; // 양인 오행을 극하는 오행 (관살)
+      const hasJeguk = s.some((p,i)=>i!==3 && GEL[p.g]===jegukEl); // 시주 제외 천간에 관살 있는지
+      const siSangName = `시상양인격(時上羊刃格)`;
+      siSangGeok = {
+        name: siSangName,
+        siJi, yanginEl, jegukEl,
+        hasJeguk,
+        desc: `시지 ${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][siJi]}이 일간 ${['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][dg]}의 양인지(羊刃地)입니다. `
+            + (hasJeguk
+              ? `천간에 관살(${['木','火','土','金','水'][jegukEl]})이 있어 제극이 이루어지는 구조 — 양인格이 온전히 작동합니다.`
+              : `천간에 관살(${['木','火','土','金','水'][jegukEl]})이 없어 제극이 부족한 구조 — 양인의 에너지를 조절하기 어렵습니다.`)
+      };
+    }
+    // 시지가 건록지이고 格이 약할 때
+    else if(siJi === geongrokJi && geokStrength < 60 && !siSangGeok){
+      siSangGeok = {
+        name: `시상건록格`,
+        siJi,
+        desc: `시지 ${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][siJi]}이 일간 ${['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][dg]}의 건록지(建祿地)로 시상格의 성격을 띱니다.`
+      };
+    }
+    // 시지 지장간 본기 기준으로 시상格 판단 (일반)
+    else if(geokStrength < 50 && !siSangGeok){
+      // 시지 본기 오행
+      const siWang = new Set([0,3,6,9]);
+      const siBPos = siWang.has(siJi) ? 0 : 2;
+      const siBongiGan = JJG_DETAIL[siJi][siBPos] || JJG_DETAIL[siJi][1] || JJG_DETAIL[siJi][0];
+      const siBongiIdx = GH_IDX[siBongiGan];
+      const siSS = getSS(dg, siBongiIdx);
+      const siNm = {
+        '偏官':'시상편관格(時上偏官格)',
+        '正官':'시상정관格(時上正官格)',
+        '偏財':'시상편재格(時上偏財格)',
+        '正財':'시상정재格(時上正財格)',
+        '偏印':'시상편인格(時上偏印格)',
+        '正印':'시상정인格(時上正印格)',
+      }[siSS];
+      if(siNm){
+        siSangGeok = {
+          name: siNm,
+          siJi,
+          desc: `월지格이 약하여 시지 ${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][siJi]}을 기준으로 ${siNm}을 보조 적용합니다.`
+        };
+      }
+    }
+  }
+
+  return{type:'NAE',name,ss,bongiGan,bongiEl,touChul,isPagyeok,pagyeokDesc,geokStrength,tendencyGeok,isJongSeong,jongEl,mJi,siSangGeok};
 }
 
 /* ⑤ 신강약 */
@@ -5389,7 +5946,7 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
   const bijipRatio = p(score[biEl]);
   const isBijipOver = bijipRatio >= 25;
 
-  if(isJunghwa){
+  if(isJunghwa && !isBijipGeok){  // 비겁格이면 중화여도 신강 분기로
     const candidates=[sikEl,jaeEl,gwanEl,biEl,inEl];
     let minEl=candidates.reduce((a,b)=>score[a]<score[b]?a:b);
 
@@ -5402,10 +5959,15 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
     }
     yEl=minEl; hEl=SAENG_BY[minEl]; gEl=GEUK[minEl]; guEl=SAENG[minEl]; hnEl=biEl;
 
-    // ★ 비겁 과다 보정: 비겁격 또는 비겁 30% 이상이면 비겁을 기신으로 격상 ★
+    // ★ 비겁 과다 보정: 비겁격 또는 비겁 25% 이상이면 비겁을 기신으로 격상 ★
     if((isBijipGeok||isBijipOver) && hnEl===biEl){
       gEl = biEl;   // 비겁 → 기신으로
       hnEl = null;
+      // 희신이 비겁과 같은 오행이면 희신을 용신을 생하는 다른 오행으로 교체
+      if(hEl === biEl){
+        // 용신(minEl)을 생해주는 오행 중 비겁이 아닌 것
+        hEl = SAENG_BY[minEl] !== biEl ? SAENG_BY[minEl] : SAENG[minEl];
+      }
       desc += ` 단, 비겁(${ENM[biEl]}) 오행이 ${isBijipGeok?'格을 이루거나 ':'' }${bijipRatio}%로 과다하여 실질적으로 기신 역할을 합니다. 비겁 오행이 강해지는 운에서는 에너지 분산과 내적 혼란에 주의하세요.`;
     }
   } else if(isGang){
@@ -5823,6 +6385,17 @@ function renderYongshin(s,score,curDw,activations){
         </div>
         <div style="font-size:12px;color:var(--text2);line-height:1.7;">${geok.tendencyGeok.desc}</div>
       </div>` : ''}
+      ${geok.siSangGeok ? `
+      <div style="margin-top:10px;padding:10px 12px;background:#f3e5f5;border-radius:8px;border-left:3px solid #7b1fa2;">
+        <div style="font-size:11px;font-weight:700;color:#7b1fa2;margin-bottom:4px;">
+          ⏱ 시상格 보조 — ${geok.siSangGeok.name}
+        </div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.7;">${geok.siSangGeok.desc}</div>
+        ${geok.siSangGeok.hasJeguk===false ? `
+        <div style="font-size:11px;color:#b07d1a;margin-top:4px;">
+          ⚠ 천간에 제극 오행이 없어 양인 에너지가 날것으로 작동 — 대운에서 관살(제극)이 오면 비로소 활성화됩니다.
+        </div>` : ''}
+      </div>` : ''}
     `;
   } else if(geok.type==='GAJONG'){
     geokBody=`
@@ -5954,8 +6527,8 @@ function renderYongshin(s,score,curDw,activations){
       return `
       <div class="ys-card" style="border-left:3px solid #0e7c6a;">
         <div class="ys-card-head">
-          <div class="ys-card-title">💼 직업·적성 추론</div>
-          <div class="ys-card-sub">格局·일주·오행 구조 기반 패턴 매칭</div>
+          <div class="ys-card-title">💼 직업 방향성</div>
+          <div class="ys-card-sub">格局·일주·오행 구조 기반 적성 방향</div>
         </div>
         <div class="ys-card-body">
           ${jobPred.puri ? `
@@ -5963,31 +6536,38 @@ function renderYongshin(s,score,curDw,activations){
             background:var(--bg2);border-radius:8px;margin-bottom:12px;border:1px solid var(--bd);">
             ${jobPred.puri}
           </div>` : ''}
-          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px;letter-spacing:0.05em;">직업군 적합도 순위</div>
-          <div style="display:grid;gap:8px;margin-bottom:12px;">
-            ${jobPred.top3.map((j,i)=>`
-            <div style="padding:9px 12px;background:${i===0?'#f0fff8':'var(--bg2)'};border-radius:8px;
-              border:1px solid ${i===0?'#0e7c6a44':'var(--bd)'};border-left:3px solid ${i===0?'#0e7c6a':i===1?'#1a5fa8':'#888'};">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-                <span style="font-size:14px;">${rankIcon[i]}</span>
-                <span style="font-size:13px;font-weight:700;color:${i===0?'#0e7c6a':i===1?'#1a5fa8':'#555'};">${j.name}</span>
-                <span style="margin-left:auto;font-size:10px;font-weight:700;color:#fff;background:${i===0?'#0e7c6a':i===1?'#1a5fa8':'#888'};
-                  padding:2px 6px;border-radius:10px;">적합도 ${Math.min(10,j.score*2)}/10</span>
-              </div>
-              <div style="font-size:11px;color:var(--text3);line-height:1.6;">
-                ${j.reasons.slice(0,3).join(' · ')}
-              </div>
-            </div>`).join('')}
+
+          <!-- 직업 방향성 카테고리 -->
+          <div style="display:grid;gap:8px;margin-bottom:10px;">
+            ${jobPred.topCats.map((cat,i)=>{
+              const icon=jobPred.catIcon[cat]||'💡';
+              const catColor=['#0e7c6a','#1a5fa8'][i]||'#555';
+              const catBg=['#f0fff8','#f0f4ff'][i]||'var(--bg2)';
+              // 카테고리 설명 맵
+              const catDesc={
+                '창의·예술·표현':'그림·글·음악·영상 등 자신만의 것을 만들어 표현하는 분야',
+                '전문자격·의료·학문':'깊은 전문 지식과 자격이 필요한 의료·연구·IT 분야',
+                '교육·강의·상담':'지식을 전달하고 사람의 성장을 돕는 교육·상담 분야',
+                '비즈니스·금융·사업':'사업·투자·금융 등 재물과 조직을 다루는 분야',
+                '법조·공직·군경':'규율·권위·공익을 다루는 법조·공직·군경 분야',
+                '기술·공학·건축':'실물을 설계하고 구현하는 기술·공학·건축 분야',
+                '역술·철학·영성':'보이지 않는 이치를 탐구하는 역술·철학·명상 분야',
+                '서비스·라이프스타일':'사람의 일상과 감성을 직접 돌보는 서비스 분야',
+              };
+              return `<div style="padding:10px 13px;background:${catBg};border-radius:9px;
+                border:1px solid ${catColor}33;border-left:3px solid ${catColor};">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                  <span style="font-size:16px;">${icon}</span>
+                  <span style="font-size:13px;font-weight:700;color:${catColor};">${cat}</span>
+                  ${i===0?`<span style="margin-left:auto;font-size:10px;padding:1px 7px;border-radius:8px;
+                    background:${catColor};color:#fff;font-weight:600;">주방향</span>`:''}
+                </div>
+                <div style="font-size:11px;color:var(--text3);line-height:1.6;">${catDesc[cat]||''}</div>
+              </div>`;
+            }).join('')}
           </div>
-          ${jobPred.secondary.length?`
-          <div style="margin-top:4px;">
-            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;">그 외 가능성</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${jobPred.secondary.map(j=>`<span style="font-size:11px;padding:3px 8px;background:var(--bg2);border-radius:12px;
-                border:1px solid var(--bd);color:var(--text2);">${j}</span>`).join('')}
-            </div>
-          </div>`:''}
-          <div class="ys-note" style="margin-top:10px;">※ 格局·일주·오행 비율의 패턴 매칭 결과입니다. 실제 직업은 환경·선택에 따라 달라질 수 있습니다.</div>
+
+          <div class="ys-note" style="margin-top:6px;">※ 타고난 기질과 에너지의 방향성입니다. 실제 직업은 환경·선택에 따라 다양하게 나타납니다.</div>
         </div>
       </div>`;
     })()}
@@ -6999,36 +7579,72 @@ function renderDwDetail(idx){
     const sigBg=['#f0fff8','#fff0f0','#fffbe6','#e8f3ff','#e6f1fb'][dwJEl]||'var(--bg2)';
 
     if(jobSig.top.length>0){
-      dwJobHtml = `
-      <div style="background:${sigBg};border:1px solid ${sigColor}33;border-left:4px solid ${sigColor};
-        border-radius:10px;padding:12px 14px;margin-top:10px;">
-        <div style="font-size:11px;font-weight:700;color:${sigColor};letter-spacing:0.08em;margin-bottom:8px;">
-          💼 이 대운에 활성화되는 직업 가능성
-        </div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.7;">
-          <strong>${jobSig.dwJNm}(${jobSig.dwJElNm})</strong> 대운 지지 기준 —
-          ${jobSig.dwElSignal?.reason||''}
-        </div>
-        <div style="display:grid;gap:5px;margin-bottom:8px;">
-          ${jobSig.top.map((j,i)=>`
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 9px;
-            background:${i===0?'rgba(255,255,255,0.7)':'var(--bg)'};
-            border-radius:7px;border:1px solid ${i===0?sigColor+'44':'var(--bd)'};">
-            <span style="font-size:13px;">${['🥇','🥈','🥉','4️⃣','5️⃣'][i]}</span>
-            <span style="font-size:12px;font-weight:${i===0?700:500};color:${i===0?sigColor:'var(--text2)'};">
-              ${j.name}
-            </span>
-            ${j.dwBoost>0?`<span style="margin-left:auto;font-size:10px;padding:1px 6px;border-radius:8px;
-              background:${sigColor}22;color:${sigColor};font-weight:700;">대운+${j.dwBoost}</span>`:''}
-            <span style="font-size:10px;color:var(--text3);${j.dwBoost>0?'':'margin-left:auto;'}">
-              ${j.note}
-            </span>
-          </div>`).join('')}
-        </div>
-        <div style="font-size:10px;color:var(--text3);border-top:1px solid var(--bd);padding-top:7px;line-height:1.6;">
-          ※ 원국 잠재력 × 대운 활성화 점수 기준입니다. 실제 직업은 환경·선택에 따라 달라집니다.
-        </div>
-      </div>`;
+      // 직업명 → 카테고리 집계
+      const JOB_TO_CAT_DW = {
+        '화가·일러스트레이터':'창의·예술·표현','웹툰작가·만화가':'창의·예술·표현',
+        '그래픽·UX디자이너':'창의·예술·표현','가수·아이돌·연예인':'창의·예술·표현',
+        '배우·연극·뮤지컬':'창의·예술·표현','영화감독·방송PD':'창의·예술·표현',
+        '소설가·웹소설작가':'창의·예술·표현','음악가·작곡가':'창의·예술·표현',
+        '패션디자이너·스타일리스트':'창의·예술·표현','공예가·도예가':'창의·예술·표현',
+        '유튜버·크리에이터':'창의·예술·표현','기자·언론인':'창의·예술·표현',
+        '출판편집자·북디자이너':'창의·예술·표현','마케터·광고기획':'창의·예술·표현',
+        '내과의·외과의':'전문자격·의료·학문','정신건강의학과':'전문자격·의료·학문',
+        '한의사':'전문자격·의료·학문','치과의사':'전문자격·의료·학문',
+        '약사·임상약사':'전문자격·의료·학문','간호사·전문간호사':'전문자격·의료·학문',
+        '물리치료사·재활치료':'전문자격·의료·학문','의료기사(방사선·임상병리)':'전문자격·의료·학문',
+        '연구원·과학자':'전문자격·의료·학문','교수(인문·사회)':'전문자격·의료·학문',
+        '교수(이공·의학)':'전문자격·의료·학문','바이오·생명공학자':'전문자격·의료·학문',
+        '수의사·동물전문가':'전문자격·의료·학문','AI·데이터사이언티스트':'전문자격·의료·학문',
+        '소프트웨어개발자':'전문자격·의료·학문','보안·해킹전문가':'전문자격·의료·학문',
+        '초중고교사':'교육·강의·상담','학원강사·인터넷강사':'교육·강의·상담',
+        '에듀테크·교육기획':'교육·강의·상담','심리상담사·심리치료사':'교육·강의·상담',
+        '사회복지사·케어매니저':'교육·강의·상담','라이프코치·커리어코치':'교육·강의·상담',
+        '사업가·창업자':'비즈니스·금융·사업','투자전문가·펀드매니저':'비즈니스·금융·사업',
+        '공인회계사·세무사':'비즈니스·금융·사업','경영컨설턴트':'비즈니스·금융·사업',
+        '부동산전문가':'비즈니스·금융·사업','핀테크·블록체인전문가':'비즈니스·금융·사업',
+        '판사·검사':'법조·공직·군경','변호사':'법조·공직·군경',
+        '공무원·행정직':'법조·공직·군경','경찰·군인·소방':'법조·공직·군경',
+        '외교관·국제공무원':'법조·공직·군경','노무사·세무사·변리사':'법조·공직·군경',
+        '건축사·인테리어디자이너':'기술·공학·건축','환경·기후전문가':'기술·공학·건축',
+        '명리·역술·점술전문가':'역술·철학·영성','철학·인문학강사':'역술·철학·영성',
+        '역사학자·고고학자':'역술·철학·영성','종교인·명상지도자':'역술·철학·영성',
+        '셰프·요리전문가':'서비스·라이프스타일','헤어·메이크업아티스트':'서비스·라이프스타일',
+        '웨딩플래너·이벤트기획':'서비스·라이프스타일','여행작가·여행크리에이터':'서비스·라이프스타일',
+        '퍼스널컬러리스트·코디':'서비스·라이프스타일','헬스트레이너·피트니스':'서비스·라이프스타일',
+        '프로선수·감독·코치':'서비스·라이프스타일','e스포츠선수·게임해설':'서비스·라이프스타일',
+      };
+      const CAT_ICON_DW={'창의·예술·표현':'🎨','전문자격·의료·학문':'🔬',
+        '교육·강의·상담':'📚','비즈니스·금융·사업':'💼','법조·공직·군경':'⚖️',
+        '기술·공학·건축':'🔧','역술·철학·영성':'🔮','서비스·라이프스타일':'✨'};
+      const dwCatScores={};
+      jobSig.top.slice(0,5).forEach(j=>{
+        const cat=JOB_TO_CAT_DW[j.name];
+        if(cat) dwCatScores[cat]=(dwCatScores[cat]||0)+(j.score||1);
+      });
+      const dwTopCat=Object.entries(dwCatScores).sort((a,b)=>b[1]-a[1]).slice(0,1).map(([c])=>c)[0];
+
+      if(dwTopCat){
+        dwJobHtml = `
+        <div style="background:${sigBg};border:1px solid ${sigColor}33;border-left:4px solid ${sigColor};
+          border-radius:10px;padding:11px 13px;margin-top:10px;">
+          <div style="font-size:11px;font-weight:700;color:${sigColor};letter-spacing:0.08em;margin-bottom:7px;">
+            💼 이 대운에 활성화되는 직업 방향
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:9px 12px;
+            background:rgba(255,255,255,0.6);border-radius:8px;border:1px solid ${sigColor}33;">
+            <span style="font-size:20px;">${CAT_ICON_DW[dwTopCat]||'💡'}</span>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:${sigColor};">${dwTopCat}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px;">
+                ${jobSig.dwElSignal?.reason||'이 대운의 에너지 방향'}
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:7px;line-height:1.6;">
+            ※ 원국의 기질이 이 대운에서 어떤 분야로 활성화되는지를 나타냅니다.
+          </div>
+        </div>`;
+      }
     }
   } catch(e){ console.error('dwJobHtml 오류:',e); }
 
