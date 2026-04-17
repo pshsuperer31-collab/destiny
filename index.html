@@ -2267,7 +2267,7 @@ function calcGaJong(s, score) {
   const inRatio2 = adjScore[inEl] / adjTotal;
   const helpTotal = biRatio2 + inRatio2;
 
-  if(rootCount <= 1 && helpTotal >= 0.55 && helpTotal <= 0.75 && hasObstacle){
+  if(rootCount <= 1 && helpTotal >= 0.55 && helpTotal <= 0.75 && hasRealObstacle){
     const isStrong = biRatio2 >= inRatio2;
     const jongType = isStrong ? '가종강격(假從强格)' : '가종약격(假從弱格)';
     const domEl2   = isStrong ? biEl : inEl;
@@ -3929,51 +3929,516 @@ const DW_DB = {
   }
 };
 
+/* ═══ 직업 추론 함수 — 4-Layer 패턴 매칭 ═══
+   결과를 알고 나서 갖다 붙이는 게 아니라,
+   格局·일주·오행 구조 자체에서 직업을 좁혀나가는 로직 */
+function calcJobPrediction(s, score, geok) {
+  const GEL_J=[0,0,1,1,2,2,3,3,4,4];
+  const JEL_J=[4,2,0,0,2,1,1,2,3,3,2,4];
+  const GH_J=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const JH_J=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const ENM_J=['木','火','土','金','水'];
+  const SAENG_J=[1,2,3,4,0],GEUK_J=[2,3,4,0,1],SAENG_BY_J=[4,0,1,2,3];
+  const dg=s[2].g, dj=s[2].j, mj=s[1].j;
+  const dEl=GEL_J[dg];
+  const total=score.reduce((a,b)=>a+b,0);
+  const pct=v=>Math.round(v/total*100);
+
+  // 십성 계산
+  function getSS_J(dg,tg){
+    const de=GEL_J[dg],te=GEL_J[tg],same=(dg%2===0)===(tg%2===0),diff=(te-de+5)%5;
+    if(diff===0)return same?'비견':'겁재';
+    if(diff===1)return same?'식신':'상관';
+    if(diff===2)return same?'편재':'정재';
+    if(diff===3)return same?'편관':'정관';
+    return same?'편인':'정인';
+  }
+
+  // 오행별 비율
+  const elPct = score.map(v=>pct(v));
+  const gwanEl = [0,1,2,3,4].find(i=>GEUK_J[i]===dEl); // 관살 오행
+  const sikEl  = SAENG_J[dEl]; // 식상 오행
+  const jaeEl  = GEUK_J[dEl];  // 재성 오행
+  const inEl   = SAENG_BY_J[dEl]; // 인성 오행
+
+  const gwanPct = elPct[gwanEl]||0;
+  const sikPct  = elPct[sikEl]||0;
+  const jaePct  = elPct[jaeEl]||0;
+  const inPct   = elPct[inEl]||0;
+
+  // 관살·식상·재성·인성 과다 여부
+  const isGwanOver = gwanPct >= 30;
+  const isSikOver  = sikPct  >= 30;
+  const isJaeOver  = jaePct  >= 30;
+  const isInOver   = inPct   >= 30;
+
+  // 格局명
+  const geokName = geok?.name || '';
+  const isPyeoniン = geokName.includes('편인');
+  const isJeongIn  = geokName.includes('정인');
+  const isSiksin   = geokName.includes('식신');
+  const isSanggwan = geokName.includes('상관');
+  const isPyeonjae = geokName.includes('편재');
+  const isJeongJae = geokName.includes('정재');
+  const isPyeonGwan= geokName.includes('편관');
+  const isJeongGwan= geokName.includes('정관');
+  const isGeopjaeG = geokName.includes('겁') || geokName.includes('건록') || geokName.includes('양인');
+
+  // 일간 음양
+  const isDgYin = dg%2===1; // 음 일간 (乙丁己辛癸)
+
+  // 일주 키
+  const iljuKey = GH_J[dg]+JH_J[dj];
+
+  // ── 직업 후보 점수표 ──────────────────────────────
+  // [직업명, 점수, 근거]
+  const jobScores = {};
+  const addJob = (name, pts, reason) => {
+    if(!jobScores[name]) jobScores[name]={score:0, reasons:[]};
+    jobScores[name].score += pts;
+    jobScores[name].reasons.push(reason);
+  };
+
+  // ── Layer 1: 格局 기반 직업 ──
+  if(isPyeoniン){
+    addJob('역술·명리·점술',     2, '편인格(비전지식)');
+    addJob('상담·심리·코칭',     2, '편인格(독창적 전문성)');
+    addJob('연구·학문·기술직',   2, '편인格(탐구)');
+    addJob('예술·창작',          1, '편인格(독창성)');
+    addJob('의료·한의·치유',     1, '편인格(전문기술)');
+    addJob('IT·프로그래밍',      1, '편인格(기술습득)');
+    addJob('종교·철학·수행',     1, '편인格(비전사상)');
+  }
+  if(isJeongIn){
+    addJob('교사·교수·강사',     2, '정인格(교육)');
+    addJob('공무원·행정',        2, '정인格(공직)');
+    addJob('출판·언론·작가',     1, '정인格(학문표현)');
+    addJob('의료·한의·치유',     1, '정인格(봉사)');
+  }
+  if(isSiksin){
+    addJob('요리·외식·푸드',     2, '식신格(맛·미각)');
+    addJob('예술·공예·디자인',   2, '식신格(창작표현)');
+    addJob('육아·복지·사회서비스',1,'식신格(돌봄)');
+    addJob('작가·크리에이터',    1, '식신格(표현)');
+  }
+  if(isSanggwan){
+    addJob('예술·연예·방송',     2, '상관格(창의표현)');
+    addJob('변호사·법조·컨설팅', 2, '상관格(논리·변론)');
+    addJob('강사·강연·유튜버',   2, '상관格(자기표현)');
+    addJob('스타트업·창업',      1, '상관格(반골·도전)');
+  }
+  if(isPyeonjae){
+    addJob('사업가·창업',        2, '편재格(사업)');
+    addJob('무역·수출입·유통',   2, '편재格(움직임)');
+    addJob('금융·투자·부동산',   1, '편재格(재물)');
+    addJob('영업·마케팅',        1, '편재格(사람관리)');
+  }
+  if(isJeongJae){
+    addJob('회계·세무·재무',     2, '정재格(재물관리)');
+    addJob('금융·은행',          1, '정재格(안정적재물)');
+    addJob('공무원·행정',        1, '정재格(안정)');
+  }
+  if(isPyeonGwan){
+    addJob('군인·경찰·소방',     2, '편관格(투지·규율)');
+    addJob('스포츠·무술',        2, '편관格(체력·도전)');
+    addJob('외과·응급의료',      1, '편관格(도전적의료)');
+    addJob('정치·리더십',        1, '편관格(권력욕)');
+  }
+  if(isJeongGwan){
+    addJob('공무원·행정',        2, '정관格(공직)');
+    addJob('의사·약사·의료',     1, '정관格(전문직)');
+    addJob('교사·교수',          1, '정관格(명예)');
+    addJob('관리직·임원',        1, '정관格(관리)');
+  }
+  if(isGeopjaeG){
+    addJob('영업·마케팅',        2, '비겁格(경쟁추진)');
+    addJob('스포츠·체육',        1, '비겁格(에너지)');
+    addJob('사업가·창업',        1, '비겁格(독립심)');
+  }
+
+  // ── Layer 2: 일주(일간×일지) 기질 보정 ──
+  const ILJU_BOOST = {
+    '丁未':['역술·명리·점술','상담·심리·코칭','예술·공예·디자인','뷰티·패션·스타일링'],
+    '丁卯':['예술·창작','교사·교수·강사','미디어·콘텐츠'],
+    '丁巳':['예술·연예·방송','강사·강연·유튜버','사업가·창업'],
+    '丁丑':['역술·명리·점술','의료·한의·치유','상담·심리·코칭'],
+    '丁亥':['작가·크리에이터','상담·심리·코칭','종교·철학·수행'],
+    '甲子':['연구·학문·기술직','IT·프로그래밍','금융·투자·부동산'],
+    '甲午':['예술·연예·방송','사업가·창업','강사·강연·유튜버'],
+    '乙未':['예술·공예·디자인','뷰티·패션·스타일링','상담·심리·코칭'],
+    '乙卯':['예술·창작','작가·크리에이터','교사·교수·강사'],
+    '丙午':['정치·리더십','강사·강연·유튜버','사업가·창업'],
+    '丙子':['사업가·창업','무역·수출입·유통','IT·프로그래밍'],
+    '戊午':['정치·리더십','사업가·창업','부동산·건설'],
+    '戊子':['역술·명리·점술','연구·학문·기술직','IT·프로그래밍'],
+    '己未':['역술·명리·점술','상담·심리·코칭','의료·한의·치유'],
+    '己丑':['의료·한의·치유','농업·식품','부동산·건설'],
+    '庚申':['군인·경찰·소방','기술직·엔지니어','사업가·창업'],
+    '庚子':['무역·수출입·유통','금융·투자·부동산','IT·프로그래밍'],
+    '辛酉':['뷰티·패션·스타일링','예술·공예·디자인','회계·세무·재무'],
+    '辛丑':['의료·한의·치유','회계·세무·재무','금융·은행'],
+    '壬子':['무역·수출입·유통','IT·프로그래밍','작가·크리에이터'],
+    '壬午':['강사·강연·유튜버','사업가·창업','연예·방송'],
+    '癸亥':['종교·철학·수행','연구·학문·기술직','역술·명리·점술'],
+    '癸巳':['역술·명리·점술','의료·한의·치유','상담·심리·코칭'],
+  };
+  const iljuBoost = ILJU_BOOST[iljuKey] || [];
+  iljuBoost.forEach(job => addJob(job, 1, `일주 ${iljuKey}(기질)`));
+
+  // ── Layer 3: 오행 과다/구조 보정 ──
+  // 관살 과다 → 타인의 내면·운명을 다루는 직업 강화
+  if(isGwanOver){
+    addJob('역술·명리·점술',   1, `관살(${ENM_J[gwanEl]}) ${gwanPct}% 과다→타인운명`);
+    addJob('상담·심리·코칭',   1, `관살 과다→타인관계`);
+    addJob('공무원·행정',      1, `관살 과다→사회규율`);
+  }
+  // 식상 과다 → 표현·창작·가르침
+  if(isSikOver){
+    addJob('예술·창작',        1, `식상(${ENM_J[sikEl]}) ${sikPct}% 과다→표현`);
+    addJob('강사·강연·유튜버', 1, `식상 과다→교육표현`);
+    addJob('작가·크리에이터',  1, `식상 과다→창작`);
+  }
+  // 재성 과다 → 재물·사업
+  if(isJaeOver){
+    addJob('사업가·창업',      1, `재성(${ENM_J[jaeEl]}) ${jaePct}% 과다→사업`);
+    addJob('무역·수출입·유통', 1, `재성 과다→유통`);
+  }
+  // 인성 과다 → 학문·전문성
+  if(isInOver){
+    addJob('연구·학문·기술직', 1, `인성(${ENM_J[inEl]}) ${inPct}% 과다→학문`);
+    addJob('교사·교수·강사',   1, `인성 과다→교육`);
+  }
+
+  // ── Layer 4: 핵심 결합 패턴 ── (강력한 시너지)
+  // 편인格 + 관살 과다 + 음 일간 = 역술·점술의 전형
+  if(isPyeoniン && isGwanOver && isDgYin){
+    addJob('역술·명리·점술', 3, '편인格+관살과다+음일간=비전지식으로 타인운명 해석');
+    addJob('상담·심리·코칭', 1, '편인格+관살과다=타인내면전문');
+  }
+  // 편인格 + 인성 과다 = 학문·연구의 심화
+  if(isPyeoniン && isInOver){
+    addJob('연구·학문·기술직', 2, '편인格+인성과다=학문탐구심화');
+    addJob('역술·명리·점술',   1, '편인格+인성과다=비전학문');
+  }
+  // 상관格 + 재성 과다 = 창의로 돈 버는 구조
+  if(isSanggwan && isJaeOver){
+    addJob('예술·연예·방송',   2, '상관格+재성과다=창의로재물');
+    addJob('강사·강연·유튜버', 1, '상관格+재성=자기표현수익화');
+  }
+  // 식신格 + 재성 존재 = 요리·서비스
+  if(isSiksin && jaePct >= 15){
+    addJob('요리·외식·푸드', 1, '식신格+재성=맛으로재물');
+  }
+  // 편관格 + 인성 존재 = 관인상생 → 전문조직직업
+  if(isPyeonGwan && inPct >= 15){
+    addJob('군인·경찰·소방', 1, '편관格+인성=관인상생 전문조직');
+    addJob('의사·약사·의료', 1, '관인상생=전문자격직');
+  }
+
+  // ── 결과 정렬 ──
+  const sorted = Object.entries(jobScores)
+    .sort((a,b)=>b[1].score-a[1].score)
+    .slice(0,6); // 상위 6개
+
+  if(sorted.length===0) return null;
+
+  const top = sorted[0];
+  const topJobs = sorted.slice(0,3).map(([name,v])=>({name, score:v.score, reasons:v.reasons}));
+  const secondaryJobs = sorted.slice(3,6).map(([name])=>name);
+
+  // ── 통변 풀이 텍스트 생성 ──
+  // 점수 나열이 아니라 "이 사람은 어떤 사람일 것 같다"는 통변사 어투로
+  const GH_DESC=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const JH_DESC=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const ENM_DESC=['木','火','土','金','水'];
+
+  // 格局 방향 문장
+  const GEOK_DIR = {
+    '편인格': `월지에 뿌리한 <strong>편인格</strong>으로, 남들이 걷지 않는 길을 혼자 파고드는 독창적인 전문가 기질입니다. 정해진 틀보다는 본인만의 방식으로 깊이 탐구하는 일이 맞습니다.`,
+    '정인格': `<strong>정인格</strong>으로 학문·교육·안정적 전문직에 자연스럽게 어울립니다. 체계적으로 배운 것을 누군가에게 전달하는 역할에서 빛을 발합니다.`,
+    '식신格': `<strong>식신格</strong>으로 무언가를 만들고 표현하고 나누는 일에 천부적인 재능이 있습니다. 사람들에게 즐거움·맛·아름다움을 주는 분야가 잘 맞습니다.`,
+    '상관格': `<strong>상관格</strong>으로 틀에 박힌 조직보다 자유롭게 자기 생각을 펼칠 수 있는 환경이 필요합니다. 창의성과 언변이 무기인 직업에서 두각을 나타냅니다.`,
+    '편재格': `<strong>편재格</strong>으로 사람과 돈과 정보가 흐르는 곳에서 에너지가 살아납니다. 움직이고 연결하고 거래하는 사업·무역·유통 계열이 체질에 맞습니다.`,
+    '정재格': `<strong>정재格</strong>으로 성실하게 쌓아가는 재물 관리에 강점이 있습니다. 꼼꼼하고 신뢰를 주는 분야 — 재무·회계·안정적 사업이 잘 맞습니다.`,
+    '편관格': `<strong>편관格</strong>으로 강한 투지와 도전정신이 핵심 에너지입니다. 압박감 속에서도 흔들리지 않는 강인함이 필요한 군경·스포츠·도전적 직종에서 두각을 나타냅니다.`,
+    '정관格': `<strong>정관格</strong>으로 사회적 규율과 명예를 중시하는 공직·전문직 기질입니다. 체계 안에서 인정받으며 능력을 발휘하는 구조가 잘 맞습니다.`,
+  };
+  const geokDirText = Object.keys(GEOK_DIR).find(k=>geokName.includes(k))
+    ? GEOK_DIR[Object.keys(GEOK_DIR).find(k=>geokName.includes(k))]
+    : `<strong>${geokName}</strong> 구조로 독특한 직업적 방향성을 가집니다.`;
+
+  // 오행 과다 문장
+  let elCharText = '';
+  if(isGwanOver) elCharText += `관살(${ENM_DESC[gwanEl]})이 ${gwanPct}%로 강하게 작동하여, 끊임없이 타인의 이야기와 고민을 받아내는 구조입니다. `;
+  if(isSikOver)  elCharText += `식상(${ENM_DESC[sikEl]})이 ${sikPct}%로 풍부하여, 자신의 생각과 감성을 밖으로 표현하려는 욕구가 강합니다. `;
+  if(isJaeOver)  elCharText += `재성(${ENM_DESC[jaeEl]})이 ${jaePct}%로 강해 재물을 직접 만들고 다루는 사업·유통 기질이 있습니다. `;
+  if(isInOver)   elCharText += `인성(${ENM_DESC[inEl]})이 ${inPct}%로 강하여, 깊이 배우고 탐구하는 학문·전문성 기질이 두드러집니다. `;
+
+  // 일주 기질 문장
+  const ILJU_CHAR = {
+    '丁未': '丁未 일주 특유의 섬세한 감성과 심미안이 더해져, 보이지 않는 것을 감지하고 표현하는 능력이 뛰어납니다.',
+    '丁卯': '丁卯 일주의 창의성과 문화적 감수성이 강점입니다.',
+    '甲子': '甲子 일주의 지적 호기심과 분석력이 핵심 무기입니다.',
+    '庚申': '庚申 일주의 강한 결단력과 실행력이 두드러집니다.',
+    '壬子': '壬子 일주의 유연한 사고와 흐름을 읽는 능력이 강점입니다.',
+    '戊午': '戊午 일주의 카리스마와 추진력이 사람들을 이끕니다.',
+    '乙未': '乙未 일주의 부드러운 감성과 심미안이 예술·치유 방면에서 빛납니다.',
+    '癸亥': '癸亥 일주의 깊은 직관력과 내면세계가 신비로운 분야와 잘 맞습니다.',
+    '己未': '己未 일주의 포용력과 세심함이 사람을 치유하는 역할에서 두각을 나타냅니다.',
+    '丁丑': '丁丑 일주의 끈기와 깊이 있는 탐구력이 전문성의 핵심입니다.',
+    '辛酉': '辛酉 일주의 예리한 심미안과 정밀함이 아름다움을 다루는 분야에서 빛납니다.',
+    '丙午': '丙午 일주의 강렬한 존재감과 리더십이 사람들을 이끕니다.',
+    '壬午': '壬午 일주의 카리스마와 표현력이 강연·방송·사업에서 두각을 나타냅니다.',
+  };
+  const iljuChar = ILJU_CHAR[iljuKey] || '';
+
+  // 직업군 좁히기 문장
+  const top1Name = topJobs[0]?.name || '';
+  const top2Name = topJobs[1]?.name || '';
+  let jobNarrow = '';
+  if(top1Name && top2Name){
+    jobNarrow = `이 구조를 종합하면 <strong>${top1Name}</strong> 계열이 가장 유력하고, <strong>${top2Name}</strong> 방향도 충분한 적성이 있습니다.`;
+  } else if(top1Name){
+    jobNarrow = `이 구조를 종합하면 <strong>${top1Name}</strong> 계열에서 두각을 나타낼 가능성이 높습니다.`;
+  }
+
+  // 독립/조직 여부
+  const isIndependent = isPyeoniン || isSanggwan || isGeopjaeG;
+  const independText = isIndependent
+    ? '조직보다는 <strong>본인만의 방식으로 독립적으로 활동하는 형태</strong>가 훨씬 잘 맞습니다.'
+    : '체계적인 조직 안에서 역할과 권한이 명확할 때 더 잘 발휘됩니다.';
+
+  const puri = [geokDirText, elCharText, iljuChar, jobNarrow, independText]
+    .filter(Boolean).join(' ');
+
+  return {
+    top1: topJobs[0],
+    top3: topJobs,
+    secondary: secondaryJobs,
+    gwanPct, sikPct, jaePct, inPct,
+    geokName,
+    puri  // 통변 풀이 텍스트
+  };
+}
+
 /* 대운 해석 생성 함수 */
 function getDwHaeseok(dwG, dwJ, geok, score, s) {
-  const total = score.reduce((a,b)=>a+b,0);
   const ENM_S = ['木','火','土','金','水'];
   const GEL_L = [0,0,1,1,2,2,3,3,4,4];
   const JEL_L = [4,2,0,0,2,1,1,2,3,3,2,4];
+  const SAENG_L=[1,2,3,4,0],GEUK_L=[2,3,4,0,1],SAENG_BY_L=[4,0,1,2,3];
   const dwGEl = GEL_L[dwG];
   const dwJEl = JEL_L[dwJ];
 
   const ganDesc = DW_DB.gan[dwG] || '';
   const jiDesc  = DW_DB.ji[dwJ]  || '';
 
-  // 용신·기신: 外格은 geok에서, 內格은 억부용신에서 보완
-  let yEl = geok.yongshinEl ?? null;
-  let gEl = geok.gishinEl  ?? null;
-  if (yEl == null && geok.type === 'NAE') {
-    try {
-      const sg = calcShinGangYak(s, score);
-      const eb = calcEokbuYongshin(s, score, sg, null);
-      yEl = eb.yongshinEl;
-      gEl = eb.gishinEl;
-    } catch(e) {}
+  // ① 억부용신 취득 (外格은 geok, 內格은 calcEokbuYongshin)
+  let yEl=geok.yongshinEl??null, hEl=geok.heeshinEl??null;
+  let gEl=geok.gishinEl??null,   guEl=geok.gushinEl??null;
+  if(geok.type==='NAE'){
+    try{
+      const sg=calcShinGangYak(s,score);
+      const eb=calcEokbuYongshin(s,score,sg,geok);
+      yEl=eb.yongshinEl; hEl=eb.heeshinEl;
+      gEl=eb.gishinEl;   guEl=eb.gushinEl;
+    }catch(e){}
   }
 
-  let fortune = '';
-  if (yEl != null) {
-    if (dwGEl === yEl || dwJEl === yEl) {
-      fortune = `🟢 이번 대운은 용신(${ENM_S[yEl]}) 기운이 강화되어 <strong>전반적으로 길한 운기</strong>입니다. 사업·직업·재물 모두 상승 기류를 탑니다.`;
-    } else if (gEl != null && (dwGEl === gEl || dwJEl === gEl)) {
-      fortune = `🔴 이번 대운은 기신(${ENM_S[gEl]}) 기운이 강화되어 <strong>주의가 필요한 운기</strong>입니다. 무리한 확장보다 내실을 다지는 시기로 활용하세요.`;
-    } else {
-      fortune = `🟡 이번 대운은 <strong>중간 운기</strong>입니다. 큰 변동 없이 꾸준히 나아가며 내실을 다지는 시기입니다.`;
+  // ② 원국 지지 목록
+  const jiList = s.map(p=>p.j);
+
+  // ③ 대운 지지 × 원국 지지 삼합/반합 체크 → 합화 오행 추출
+  const SAMHAP_SETS=[[11,3,7,0],[2,6,10,1],[5,9,1,2],[8,0,4,3]]; // [왕지,묘지,고지,오행]
+  let samhapEl=null, banHapEl=null;
+  for(const [a,b,c,el] of SAMHAP_SETS){
+    const trio=[a,b,c];
+    const allJi=[...jiList,dwJ];
+    const cnt=trio.filter(j=>allJi.includes(j)).length;
+    if(cnt===3 && trio.includes(dwJ)){ samhapEl=el; break; }
+    if(cnt===2 && trio.includes(dwJ)){ banHapEl=el; break; }
+  }
+  const samhapActEl = samhapEl??banHapEl; // 삼합/반합으로 강화되는 오행
+
+  // ④ 대운 천간합 → 합거 대상 천간 오행 체크
+  const CHEONGAN_HAP_EL_L={};
+  [[0,5,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
+    CHEONGAN_HAP_EL_L[`${a}-${b}`]=el; CHEONGAN_HAP_EL_L[`${b}-${a}`]=el;
+  });
+  // 대운 천간이 원국 천간을 합거할 때, 합거된 천간의 오행이 약화됨
+  let hapGeoEl=null; // 합거로 약화되는 오행
+  let hapGeoName='';
+  for(const p of s){
+    const hw=CHEONGAN_HAP_EL_L[`${dwG}-${p.g}`];
+    if(hw!==undefined){
+      hapGeoEl=GEL_L[p.g]; // 합거되는 원국 천간의 오행
+      hapGeoName=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][p.g];
+      break;
     }
+  }
+
+  // ⑤ 대운 지지 충 → 원국 지지 충 대상
+  const MJICHU_L=[6,7,8,9,10,11,0,1,2,3,4,5];
+  const chungTarget=MJICHU_L[dwJ];
+  const hasChung=jiList.includes(chungTarget);
+
+  // ⑤-2 대운 지지 × 원국 지지 육합(六合) 체크
+  // 육합: 子丑, 寅亥, 卯戌, 辰酉, 巳申, 午未
+  const YUKH_MAP_L={0:1,1:0,2:11,11:2,3:10,10:3,4:9,9:4,5:8,8:5,6:7,7:6};
+  const yukhTarget=YUKH_MAP_L[dwJ]; // 대운 지지와 육합하는 지지
+  const yukhMatchIdx=jiList.findIndex(j=>j===yukhTarget); // 원국에서 육합 대상 인덱스
+  // 육합 대상 지지의 오행 및 일지(인덱스 2)인지 체크
+  const hasYukh=yukhMatchIdx!==-1;
+  const yukhMatchEl=hasYukh?JEL_L[jiList[yukhMatchIdx]]:null;
+  const isIljiYukh=hasYukh&&yukhMatchIdx===2; // 일지와 육합 = 일주 불안정
+
+  // ⑤-3 대운 천간 × 원국 천간 천간충(天干冲) 체크
+  // 천간충: 甲庚(0-6), 乙辛(1-7), 丙壬(2-8), 丁癸(3-9) — 4간격
+  const ganChungMap={0:6,6:0,1:7,7:1,2:8,8:2,3:9,9:3};
+  const dwGChungTarget=ganChungMap[dwG]; // 대운 천간과 충하는 천간
+  const ganList=s.map(p=>p.g);
+  const hasGanChung=dwGChungTarget!==undefined&&ganList.includes(dwGChungTarget);
+  const ganChungEl=hasGanChung?GEL_L[dwGChungTarget]:null; // 충받는 원국 천간의 오행
+
+  // ⑥ 종합 점수 계산
+  // 용신·희신 : +2/+1, 기신·구신: -2/-1, 삼합/반합(용신): +2/+1, 합거(기신): +1
+  let pts=0, reasons=[];
+  const dg_ys=s[2].g; // 일간 천간 인덱스
+
+  // 천간 오행 판단 — 천간(간지 인덱스) 추가로 음양 겁재 보정
+  // 이론: 일간과 같은 오행이지만 음양이 다른 천간(겁재)이 대운 천간으로 올 때
+  // 특히 丁火 일간 + 丙火 대운처럼 양이 음을 압도하는 경우 에너지 소진
+  const gangil=(el, nm, ganIdx=null)=>{
+    if(el===yEl){pts+=2;reasons.push(`${nm}(용신 ${ENM_S[el]})`);}
+    else if(el===hEl){
+      // 희신 천간인데, 일간과 같은 오행이고 음양이 반대(겁재)인 경우 보정
+      // 겁재 = 같은 오행, 다른 음양 → 희신이지만 일간 에너지 압도
+      if(ganIdx!==null && el===GEL_L[dg_ys]){
+        // 같은 오행 = 비겁 관계
+        const isGeopjae=(ganIdx%2)!==(dg_ys%2); // 음양 다르면 겁재
+        const isYangOver=(ganIdx%2===0)&&(dg_ys%2===1); // 양이 음 일간을 압도 (丙>丁, 甲>乙 등)
+        if(isYangOver){
+          pts-=1; // 겉으론 희신이나 실제론 일간 소멸 → 패널티
+          reasons.push(`${nm}(겁재-양압도음: ${ENM_S[el]} 겉희신이나 일간 소멸)`);
+        } else if(isGeopjae){
+          pts+=0; // 음이 양 일간을 만나면 중립 (을 일간 + 갑 = 약한 겁재)
+          reasons.push(`${nm}(겁재 중립)`);
+        } else {
+          pts+=1;reasons.push(`${nm}(희신 ${ENM_S[el]})`);
+        }
+      } else {
+        pts+=1;reasons.push(`${nm}(희신 ${ENM_S[el]})`);
+      }
+    }
+    else if(el===gEl){pts-=2;reasons.push(`${nm}(기신 ${ENM_S[el]})`);}
+    else if(el===guEl){pts-=1;reasons.push(`${nm}(구신 ${ENM_S[el]})`);}
+  };
+  gangil(dwGEl, ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'][dwG]+'천간', dwG);
+  gangil(dwJEl, ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][dwJ]+'지지', null);
+
+  // 삼합/반합
+  if(samhapActEl!=null){
+    if(samhapActEl===yEl){pts+= samhapEl!=null?2:1; reasons.push(`삼합/반합→${ENM_S[samhapActEl]}(용신) 강화`);}
+    else if(samhapActEl===hEl){pts+= samhapEl!=null?1:1; reasons.push(`삼합/반합→${ENM_S[samhapActEl]}(희신) 강화`);}
+    else if(samhapActEl===gEl){pts-= samhapEl!=null?2:1; reasons.push(`삼합/반합→${ENM_S[samhapActEl]}(기신) 강화`);}
+    else if(samhapActEl===guEl){pts-=1; reasons.push(`삼합/반합→${ENM_S[samhapActEl]}(구신) 강화`);}
+  }
+
+  // 합거 효과: 합거된 천간이 기신이면 +1(기신 약화), 용신이면 -1(용신 약화)
+  // ★ 특수: 합거 대상이 원국에서 일간과 합에 묶인 천간이면 → 일간 해방 +2
+  if(hapGeoEl!=null){
+    // 원국에서 일간과 합하는 천간인지 체크
+    const dg_inner=s[2].g;
+    const ilgHapTargets=s.filter((p,i)=>i!==2&&CHEONGAN_HAP_EL_L[`${dg_inner}-${p.g}`]!==undefined);
+    const isIlgHap=ilgHapTargets.some(p=>p.g===s.find((p2,i)=>i!==2&&GEL_L[p2.g]===hapGeoEl)?.g);
+    // 좀더 직접적으로: 대운 천간과 합하는 원국 천간이 일간과도 합인지
+    const hapPartner=s.find((p,i)=>i!==2&&CHEONGAN_HAP_EL_L[`${dwG}-${p.g}`]!==undefined);
+    const isIlgHapDirect=hapPartner&&CHEONGAN_HAP_EL_L[`${dg_inner}-${hapPartner.g}`]!==undefined;
+
+    if(isIlgHapDirect){
+      // 일간과 합에 묶인 천간을 대운이 합거 → 일간 해방!
+      pts+=2;
+      reasons.push(`${hapGeoName}합거→일간 속박 해제(+2)`);
+    } else if(hapGeoEl===gEl){pts+=1;reasons.push(`${hapGeoName}합거→기신(${ENM_S[gEl]}) 약화`);}
+    else if(hapGeoEl===guEl){pts+=1;reasons.push(`${hapGeoName}합거→구신(${ENM_S[guEl]}) 약화`);}
+    else if(hapGeoEl===yEl){pts-=1;reasons.push(`${hapGeoName}합거→용신(${ENM_S[yEl]}) 약화`);}
+    else if(hapGeoEl===hEl){pts-=1;reasons.push(`${hapGeoName}합거→희신(${ENM_S[hEl]}) 약화`);}
+  }
+
+  // 충 효과: 원국 용신 지지를 충하면 -1, 기신 지지를 충하면 +1
+  if(hasChung){
+    const chungJiEl=JEL_L[chungTarget];
+    if(chungJiEl===yEl){pts-=1;reasons.push('원국 용신 지지 충→불안정');}
+    else if(chungJiEl===hEl){pts-=1;reasons.push('원국 희신 지지 충');}
+    else if(chungJiEl===gEl){pts+=1;reasons.push('원국 기신 지지 충→기신 약화');}
+  }
+
+  // 육합 효과: 일지와 육합이면 일주 불안정 → -1
+  // 일지에 용신/희신 지장간이 있으면 추가 -1
+  if(hasYukh){
+    if(isIljiYukh){
+      pts-=1;
+      reasons.push(`大運지지${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][dwJ]}+일지${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][jiList[2]]}육합→일주 불안정`);
+    } else if(yukhMatchEl===yEl){
+      pts-=1;reasons.push('원국 용신 지지 육합거');
+    } else if(yukhMatchEl===gEl){
+      pts+=1;reasons.push('원국 기신 지지 육합거→기신 약화');
+    }
+  }
+
+  // 천간충 효과: 용신 천간을 충하면 -1, 기신 천간을 충하면 +1
+  // 일간을 충하면 -1 (일간 불안정)
+  // ★ 일간과 합에 묶인 천간이 충받으면 → 일간도 연동 불안정 -1
+  if(hasGanChung){
+    const GH_L=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+    const chungGanName=GH_L[dwGChungTarget];
+    const chungGanIdx=ganList.indexOf(dwGChungTarget);
+    const isIlgan=chungGanIdx===2;
+    // 충받는 천간이 원국에서 일간과 합에 묶인 천간인지 체크
+    const CHEONGAN_HAP_CHK={};
+    [[0,5,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
+      CHEONGAN_HAP_CHK[`${a}-${b}`]=el;CHEONGAN_HAP_CHK[`${b}-${a}`]=el;
+    });
+    const isIlganHapTarget=CHEONGAN_HAP_CHK[`${dg_ys}-${dwGChungTarget}`]!==undefined;
+
+    if(isIlgan){
+      pts-=1;reasons.push(`${GH_L[dwG]}${chungGanName}천간충→일간 불안정`);
+    } else if(isIlganHapTarget){
+      pts-=1;reasons.push(`${chungGanName}충→일간合대상 교란→일간 연동 불안`);
+    } else if(ganChungEl===yEl){
+      pts-=1;reasons.push(`${chungGanName}천간충→용신 천간 약화`);
+    } else if(ganChungEl===gEl){
+      pts+=1;reasons.push(`${chungGanName}천간충→기신 천간 약화`);
+    } else if(ganChungEl===hEl){
+      pts-=1;reasons.push(`${chungGanName}천간충→희신 천간 약화`);
+    }
+  }
+
+  // ⑦ 최종 판정
+  const reasonStr = reasons.length ? `(${reasons.join(' / ')})` : '';
+  let fortune='';
+  if(yEl==null){
+    fortune=`🟡 ${ENM_S[dwGEl]} 기운의 흐름을 따라 꾸준히 나아가세요.`;
+  } else if(pts>=3){
+    fortune=`🟢 <strong>매우 길한 대운</strong>입니다 ${reasonStr}. 용신·희신이 강력히 작동하여 사업·직업·관계 모두 상승 기류를 탑니다. 적극적으로 도전할 시기입니다.`;
+  } else if(pts>=1){
+    fortune=`🟢 <strong>길한 대운</strong>입니다 ${reasonStr}. 전반적으로 순조로운 흐름이며, 목표를 향해 꾸준히 나아가기에 좋은 시기입니다.`;
+  } else if(pts<=-3){
+    fortune=`🔴 <strong>매우 주의가 필요한 대운</strong>입니다 ${reasonStr}. 기신이 강하게 작동하여 무리한 확장·투자·결정을 삼가고 내실을 다지는 시기로 활용하세요.`;
+  } else if(pts<=-1){
+    fortune=`🔴 <strong>주의가 필요한 대운</strong>입니다 ${reasonStr}. 과욕을 피하고 신중하게 움직이는 것이 현명합니다.`;
   } else {
-    fortune = `🟡 ${ENM_S[dwGEl]} 기운의 흐름을 따라 꾸준히 나아가세요.`;
+    fortune=`🟡 <strong>중간 운기</strong>입니다 ${reasonStr}. 큰 변동 없이 꾸준히 나아가며 내실을 다지는 시기입니다.`;
   }
 
   // 가종格 특수 해석
-  if (geok.type === 'GAJONG' && geok.obstacleEl != null) {
-    if (dwGEl === geok.obstacleEl || dwJEl === geok.obstacleEl) {
-      fortune = `⚠️ 가종격 사주에서 방해오행(${ENM_S[geok.obstacleEl]}) 대운이 왔습니다. <strong>큰 결정과 변화를 삼가세요.</strong> 내면의 갈등이 극대화되는 시기입니다.`;
+  if(geok.type==='GAJONG' && geok.obstacleEl!=null){
+    if(dwGEl===geok.obstacleEl||dwJEl===geok.obstacleEl){
+      fortune=`⚠️ 가종格 사주에서 방해오행(${ENM_S[geok.obstacleEl]}) 대운입니다. <strong>큰 결정과 변화를 삼가세요.</strong> 내면의 갈등이 극대화되는 시기입니다.`;
     }
   }
 
-  return { ganDesc, jiDesc, fortune };
+  return { ganDesc, jiDesc, fortune, pts };
 }
 
 /* ═══ 천간합·지지충형·삼합 해석 DB ═══ */
@@ -4941,6 +5406,52 @@ function renderYongshin(s,score,curDw,activations){
       <div class="ys-card-head"><div class="ys-card-title">格局 (격국)</div><div class="ys-card-sub">내격·외격·화격·일행득기격·종격·가종격 종합 판단</div></div>
       <div class="ys-card-body">${geokBody}</div>
     </div>
+    ${(()=>{
+      // ── 직업 추론 카드 ──
+      const jobPred = calcJobPrediction(s, origScore, geok);
+      if(!jobPred) return '';
+      const ECL_J=['el-wood','el-fire','el-earth','el-metal','el-water'];
+      const rankIcon=['🥇','🥈','🥉'];
+      return `
+      <div class="ys-card" style="border-left:3px solid #0e7c6a;">
+        <div class="ys-card-head">
+          <div class="ys-card-title">💼 직업·적성 추론</div>
+          <div class="ys-card-sub">格局·일주·오행 구조 기반 패턴 매칭</div>
+        </div>
+        <div class="ys-card-body">
+          ${jobPred.puri ? `
+          <div style="font-size:13px;color:var(--text2);line-height:1.9;padding:11px 13px;
+            background:var(--bg2);border-radius:8px;margin-bottom:12px;border:1px solid var(--bd);">
+            ${jobPred.puri}
+          </div>` : ''}
+          <div style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px;letter-spacing:0.05em;">직업군 적합도 순위</div>
+          <div style="display:grid;gap:8px;margin-bottom:12px;">
+            ${jobPred.top3.map((j,i)=>`
+            <div style="padding:9px 12px;background:${i===0?'#f0fff8':'var(--bg2)'};border-radius:8px;
+              border:1px solid ${i===0?'#0e7c6a44':'var(--bd)'};border-left:3px solid ${i===0?'#0e7c6a':i===1?'#1a5fa8':'#888'};">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                <span style="font-size:14px;">${rankIcon[i]}</span>
+                <span style="font-size:13px;font-weight:700;color:${i===0?'#0e7c6a':i===1?'#1a5fa8':'#555'};">${j.name}</span>
+                <span style="margin-left:auto;font-size:10px;font-weight:700;color:#fff;background:${i===0?'#0e7c6a':i===1?'#1a5fa8':'#888'};
+                  padding:2px 6px;border-radius:10px;">적합도 ${Math.min(10,j.score*2)}/10</span>
+              </div>
+              <div style="font-size:11px;color:var(--text3);line-height:1.6;">
+                ${j.reasons.slice(0,3).join(' · ')}
+              </div>
+            </div>`).join('')}
+          </div>
+          ${jobPred.secondary.length?`
+          <div style="margin-top:4px;">
+            <div style="font-size:10px;font-weight:700;color:var(--text3);margin-bottom:5px;">그 외 가능성</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              ${jobPred.secondary.map(j=>`<span style="font-size:11px;padding:3px 8px;background:var(--bg2);border-radius:12px;
+                border:1px solid var(--bd);color:var(--text2);">${j}</span>`).join('')}
+            </div>
+          </div>`:''}
+          <div class="ys-note" style="margin-top:10px;">※ 格局·일주·오행 비율의 패턴 매칭 결과입니다. 실제 직업은 환경·선택에 따라 달라질 수 있습니다.</div>
+        </div>
+      </div>`;
+    })()}
     ${eokbuCard}
     <div class="ys-card">
       <div class="ys-card-head"><div class="ys-card-title">調候用神 (조후용신)</div><div class="ys-card-sub">월지 계절 한난조습 조절 (일간×월지 120가지)</div></div>
@@ -5318,6 +5829,19 @@ function selectDw(idx){
     const scoreForGeok = window._origScore || calcOhaeng(s, null);
     renderYongshin(s, scoreForGeok, curDw, window._dwActivations||[]);
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   일주×월지×시간 상세 풀이 조회 함수
+   키 형식: '乙亥-寅月-辛巳時'
+   ═══════════════════════════════════════════════════════════════ */
+function getDetailPuri(dg, dj, mj, hg, hj) {
+  if(typeof ILJU_DETAIL_DB === 'undefined') return null;
+  const GAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const JI  = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const MON = ['子月','丑月','寅月','卯月','辰月','巳月','午月','未月','申月','酉月','戌月','亥月'];
+  const key = `${GAN[dg]}${JI[dj]}-${MON[mj]}-${GAN[hg]}${JI[hj]}時`;
+  return ILJU_DETAIL_DB[key] || null;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -9327,5 +9851,7 @@ function swTab(n,el){
 // 초기 실행
 toggleLeap();
 </script>
+<!-- 일주 상세풀이 DB (외부 파일) -->
+<script src="ilju_detail_db_combined.js"></script>
 </body>
 </html>
