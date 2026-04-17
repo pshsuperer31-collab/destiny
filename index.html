@@ -6156,7 +6156,7 @@ function calcDwGeok(s, dwG, dwJ, dwScore) {
 
   // ── 대운格 본기 추출 ──
   const WANG_JI_SET = new Set([0,3,6,9]);
-  const bongiPos = WANG_JI_SET.has(dwJ) ? 0 : 2;
+  const bongiPos = 2; // 본기는 항상 인덱스 2
   const dwBongiGan = JJG_DETAIL[dwJ][bongiPos] || JJG_DETAIL[dwJ][1] || JJG_DETAIL[dwJ][0];
   if(!dwBongiGan) return null;
   const dwBongiIdx = GH_IDX[dwBongiGan];
@@ -6232,7 +6232,30 @@ function calcDwGeok(s, dwG, dwJ, dwScore) {
     const gwanEl5 = [0,1,2,3,4].find(i=>GEUK[i]===dgEl5);
     const biRatio  = score5[biEl5]  / total5;
     const inRatio  = score5[inEl5]  / total5;
-    const helpRatio= biRatio + inRatio;
+    let helpRatio= biRatio + inRatio;
+
+    // ★ 통근 강화 보정 ★
+    // 이론: 대운 지지가 원국 인성/비겁 천간의 통근지가 되면
+    //       그 천간이 강해져 일간 뿌리가 강화 → helpRatio 상향 보정
+    // 예) 甲申 대운에서 원국 庚申의 庚金(인성)이 申에 이중 통근
+    //     → 庚金이 강해지고 壬水 일간을 더 강하게 생함
+    {
+      const JEL_DW5=[4,2,0,0,2,1,1,2,3,3,2,4];
+      const dwJEl5=JEL_DW5[dwJ];
+      // 대운 지지와 같은 오행의 원국 인성/비겁 천간 탐색
+      const jiListOrig=s.map(p=>p.j);
+      s.forEach(p=>{
+        const ganEl=GEL[p.g];
+        if((ganEl===inEl5||ganEl===biEl5) && ganEl===dwJEl5){
+          // 원국에 이미 같은 통근지가 있으면 → 대운에서 중복 통근 → 더 강화
+          const existingRoots=jiListOrig.filter(j=>JEL_DW5[j]===ganEl).length;
+          if(existingRoots >= 1){
+            // 이미 통근이 있는데 대운 지지가 또 같은 오행 → 이중 통근 강화
+            helpRatio = Math.min(helpRatio + 0.05, 1.0);
+          }
+        }
+      });
+    }
 
     // 종格 체크 (5주법 기준)
     if(helpRatio < 0.20){
@@ -8560,7 +8583,6 @@ function calcOhaengWithDW(s, dwG, dwJ) {
 
   // ── 대운 지지 처리 ──
   // 가중치 16 (월지 32.5의 절반)
-  // 대운 지지도 합화 여부 체크 (원국 지지와의 삼합·방합·육합)
   const ganElSetFull = new Set([...s.map(p=>GEL[p.g]), dwGEl_eff]);
   JJG_DETAIL[dwJ].forEach((gan,ri)=>{
     if(!gan) return;
@@ -8570,6 +8592,28 @@ function calcOhaengWithDW(s, dwG, dwJ) {
     if(ganElSetFull.has(el)) ratio*=1.2;
     score[el]+=16*ratio;
   });
+
+  // ★ 대운 지지가 원국 천간의 통근지가 되면 그 천간 강화 ★
+  // 이론: 원국 천간이 대운 지지에 뿌리를 두면 그 천간의 힘이 강해짐
+  // 예) 庚申 연주의 庚金이 대운 申을 만나면 → 庚金 통근 강화 → 壬水 인성 강화 → 일간 뿌리 강화
+  {
+    const JEL_DW=[4,2,0,0,2,1,1,2,3,3,2,4];
+    const dwJEl=JEL_DW[dwJ];
+    s.forEach((p,idx)=>{
+      const ganEl=GEL[p.g];
+      // 대운 지지 오행과 같은 오행 천간 → 통근 강화
+      if(ganEl===dwJEl){
+        // 강화 정도: 가중치 비례, 연주·월주·일주·시주 순서로 조금씩 다름
+        const boost=[4,6,8,6][idx]; // 연주=4, 월주=6, 일주=8, 시주=6
+        score[ganEl]+=boost;
+      }
+      // 대운 지지 지장간 중 본기와 같은 오행 천간도 통근
+      const dwBongiEl=GEL[GH_IDX[JJG_DETAIL[dwJ][2]]||GH_IDX[JJG_DETAIL[dwJ][1]]||0];
+      if(ganEl===dwBongiEl && ganEl!==dwJEl){
+        score[ganEl]+=3;
+      }
+    });
+  }
 
   // ── 대운 활성화 보정 ──
   for(const act of activations){
