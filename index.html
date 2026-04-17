@@ -253,6 +253,23 @@ header{text-align:center;margin-bottom:2.5rem;padding-top:0.5rem;}
   </div>
 </header>
 
+
+<div class="input-card" style="margin-bottom:8px;padding:10px 14px;">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:700;color:var(--navy);white-space:nowrap;">⭐ 즐겨찾기</span>
+    <div id="fav-list" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0;"></div>
+    <div style="display:flex;gap:4px;flex-shrink:0;">
+      <input id="fav-name" type="text" placeholder="이름 입력" maxlength="10"
+        style="font-size:11px;padding:5px 8px;border:1px solid var(--bd);border-radius:8px;
+        width:80px;background:var(--bg);color:var(--text1);"
+        onkeydown="if(event.key==='Enter') saveFav()"/>
+      <button onclick="saveFav()"
+        style="font-size:11px;padding:5px 10px;background:#1a5fa8;color:#fff;
+        border:none;border-radius:8px;cursor:pointer;white-space:nowrap;">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="input-card">
   <div class="igrid">
     <div class="ig"><label>생년</label><input type="number" id="yr" value="1990" min="1900" max="2024"/></div>
@@ -6453,13 +6470,13 @@ function showSwDetail(year, dwG, dwJ){
       </div>`;
   }
 
-  const html=renderSwScore(year, s, dwG, dwJ);
+  const html = (()=>{ try{ return renderSwScore(year, s, dwG, dwJ); }catch(e){ console.error('renderSwScore 오류:',e); return '<div style="padding:12px;color:#c0392b;">세운 분석 오류: '+e.message+'</div>'; } })();
   const el=document.getElementById('sw-detail');
   if(!el) return;
 
   // ★ 세운 전용 용신 기반 동적 해석 ★
   // DB 고정 내용(기질·성격·직업 등) 대신 그 해 운세에 맞춘 동적 해석 생성
-  const swYongshinHtml = (()=>{
+  const swYongshinHtml = (()=>{ try {
     const geok  = window._geok  || null;
     const eokbu = window._eokbu || null;
     const johu  = window._johu  || null;
@@ -6608,7 +6625,7 @@ function showSwDetail(year, dwG, dwJ){
           </div>
         </div>
       </div>`;
-  })();
+  } catch(e){ console.error('swYongshinHtml 오류:',e); return ''; } })();
 
   el.innerHTML = html + swYongshinHtml;
   el.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -7326,6 +7343,92 @@ function calcOhaengWithDW(s, dwG, dwJ) {
 
   return { score: score.map(v=>Math.max(0,v)), activations };
 }
+
+
+/* ── 즐겨찾기 저장/불러오기 ── */
+function getFavs() {
+  try { return JSON.parse(localStorage.getItem('saju_favs') || '[]'); } catch(e){ return []; }
+}
+function saveFavs(favs) {
+  try { localStorage.setItem('saju_favs', JSON.stringify(favs)); } catch(e){}
+}
+
+function saveFav() {
+  const yr = document.getElementById('yr').value;
+  const mo = document.getElementById('mo').value;
+  const dy = document.getElementById('dy').value;
+  const hr = document.getElementById('hr').value;
+  const gd = document.getElementById('gd').value;
+  const ct = document.getElementById('ct').value;
+  const lp = document.getElementById('leap').value;
+  if(!yr || !mo || !dy) { alert('생년월일을 먼저 입력해주세요.'); return; }
+
+  const nameEl = document.getElementById('fav-name');
+  const name = (nameEl ? nameEl.value.trim() : '') || `${yr}.${mo}.${dy}`;
+  if(!name) { if(nameEl) nameEl.focus(); return; }
+
+  const favs = getFavs();
+  const existing = favs.findIndex(f => f.name === name);
+  const entry = { name, yr, mo, dy, hr, gd, ct, lp, savedAt: new Date().toLocaleDateString('ko-KR') };
+  if(existing >= 0) favs[existing] = entry;
+  else favs.push(entry);
+  saveFavs(favs);
+  if(nameEl) nameEl.value = '';
+  renderFavList();
+}
+
+function loadFav(idx) {
+  const favs = getFavs();
+  const f = favs[idx];
+  if(!f) return;
+  document.getElementById('yr').value = f.yr;
+  document.getElementById('mo').value = f.mo;
+  document.getElementById('dy').value = f.dy;
+  document.getElementById('hr').value = f.hr;
+  document.getElementById('gd').value = f.gd;
+  document.getElementById('ct').value = f.ct;
+  document.getElementById('leap').value = f.lp || '0';
+  toggleLeap();
+  // 자동으로 분석 실행
+  generate();
+}
+
+function deleteFav(idx, e) {
+  e.stopPropagation();
+  const favs = getFavs();
+  if(!confirm(`"${favs[idx]?.name}" 즐겨찾기를 삭제할까요?`)) return;
+  favs.splice(idx, 1);
+  saveFavs(favs);
+  renderFavList();
+}
+
+function renderFavList() {
+  const favs = getFavs();
+  const el = document.getElementById('fav-list');
+  if(!el) return;
+  if(favs.length === 0) {
+    el.innerHTML = '<span style="font-size:11px;color:var(--text3);">저장된 사주가 없습니다. 입력 후 "+ 현재 저장"을 눌러보세요.</span>';
+    return;
+  }
+  const GD = { male:'♂', female:'♀' };
+  el.innerHTML = favs.map((f, i) => `
+    <div onclick="loadFav(${i})" style="display:inline-flex;align-items:center;gap:5px;
+      padding:4px 10px;background:var(--bg2);border:1px solid var(--bd);border-radius:20px;
+      cursor:pointer;font-size:12px;transition:all 0.15s;white-space:nowrap;"
+      onmouseover="this.style.background='#d6e4ff';this.style.borderColor='#1a5fa8'"
+      onmouseout="this.style.background='var(--bg2)';this.style.borderColor='var(--bd)'">
+      <span style="font-weight:700;color:var(--navy);">${f.name}</span>
+      <span style="color:var(--text3);font-size:10px;">${GD[f.gd]||''} ${f.yr}.${f.mo}.${f.dy}</span>
+      <span onclick="deleteFav(${i}, event)" style="color:#c0392b;font-size:11px;padding:0 2px;font-weight:700;"
+        title="삭제">×</span>
+    </div>`).join('');
+}
+
+// 페이지 로드 시 즐겨찾기 목록 렌더링
+document.addEventListener('DOMContentLoaded', () => {
+  renderFavList();
+  toggleLeap();
+});
 
 /* ── 메인 ── */
 function toggleLeap() {
@@ -9340,6 +9443,225 @@ function renderSwScore(year, s, dwG, dwJ) {
   const bestM  = months.reduce((a,b)=>a.total>b.total?a:b);
   const worstM = months.reduce((a,b)=>a.total<b.total?a:b);
 
+  /* 대운+세운 통합 인생사 추론 텍스트 생성 */
+  function buildLifeInference(result, sw, dwG, dwJ, year) {
+    const GH_L=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+    const JH_L=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+    const ENM_L=['木','火','土','金','水'];
+    const GEL_L=[0,0,1,1,2,2,3,3,4,4], JEL_L=[4,2,0,0,2,1,1,2,3,3,2,4];
+    const YUKH_L={0:1,1:0,2:11,11:2,3:10,10:3,4:9,9:4,5:8,8:5,6:7,7:6};
+    const CHUNG_L=[6,7,8,9,10,11,0,1,2,3,4,5];
+
+    const geok = window._geok || null;
+    const s_ = window._saju || null;
+    if(!s_) return '';
+
+    const origScore_ = window._origScore || calcOhaeng(s_, null);
+    const origSg_ = calcShinGangYak(s_, origScore_);
+    const isOuter_ = ['HWA','ILHAENG','JONG','GAJONG'].includes(geok?.type);
+    const eokbu_ = isOuter_ ? geok : calcEokbuYongshin(s_, origScore_, origSg_, geok);
+
+    const yEl_ = eokbu_?.yongshinEl ?? geok?.yongshinEl;
+    const gEl_ = eokbu_?.gishinEl ?? geok?.gishinEl;
+    const hEl_ = eokbu_?.heeshinEl ?? geok?.heeshinEl;
+    const dg_ = s_[2].g, dj_ = s_[2].j;
+    const SAENG_BY_J = [4,0,1,2,3]; // 인성 오행 (로컬 정의)
+    const inEl_ = SAENG_BY_J[GEL_L[dg_]]; // 일간의 인성 오행
+
+    const swG=sw.g, swJ=sw.j;
+    const swGEl=GEL_L[swG], swJEl=JEL_L[swJ];
+    const dwGEl=GEL_L[dwG], dwJEl=JEL_L[dwJ];
+
+    // 합충 분석
+    const jiList_=[...s_.map(p=>p.j), dwJ];
+    const iljiChungTarget=CHUNG_L[dj_];
+    const swChungIlji=swJ===iljiChungTarget;
+    const swYukhIlji=YUKH_L[swJ]===dj_||YUKH_L[dj_]===swJ;
+
+    // 일간과 합하는 세운 천간?
+    const CHEONGAN_HAP_L={};
+    [[0,5,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
+      CHEONGAN_HAP_L[`${a}-${b}`]=el;CHEONGAN_HAP_L[`${b}-${a}`]=el;
+    });
+    const swGanHapIlgan=CHEONGAN_HAP_L[`${swG}-${dg_}`]!==undefined;
+
+    // cats 기반 이벤트 감지
+    const cats = result.cats || [];
+    const total = result.total || 0;
+    const isGood = total >= 2;
+    const isBad = total <= -2;
+
+    // 세운 지지 지장간 분석 — 식신/상관/재성/관살 포함 여부
+    const JJG_L=[[null,'壬','癸'],['癸','辛','己'],['戊','丙','甲'],[null,'甲','乙'],['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],['戊','壬','庚'],[null,'庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
+    const GH_IDX_L={'甲':0,'乙':1,'丙':2,'丁':3,'戊':4,'己':5,'庚':6,'辛':7,'壬':8,'癸':9};
+    function getSS_L(dg,tg){
+      const de=GEL_L[dg],te=GEL_L[tg],same=(dg%2===0)===(tg%2===0),diff=(te-de+5)%5;
+      if(diff===0)return same?'비견':'겁재';
+      if(diff===1)return same?'식신':'상관';
+      if(diff===2)return same?'편재':'정재';
+      if(diff===3)return same?'편관':'정관';
+      return same?'편인':'정인';
+    }
+    const swJGans = JJG_L[swJ].filter(Boolean);
+    const swJSS = swJGans.map(g=>getSS_L(dg_,GH_IDX_L[g]));
+    const swJHasSikSo = swJSS.some(ss=>ss==='식신'||ss==='상관'); // 자녀성
+    const swJHasGwan = swJSS.some(ss=>ss==='편관'||ss==='정관');  // 관살
+    const swJHasJae  = swJSS.some(ss=>ss==='편재'||ss==='정재');  // 재성
+
+    // 일간 음양 — 여성 판단 (전통적으로 음 일간=여성, 양 일간=남성 기준)
+    const isDgYin_L = dg_ % 2 === 1;
+
+    // 세운 천간 십성
+    const swGSS = getSS_L(dg_, swG);
+    const isSwGYong = swGEl===yEl_;
+    const isSwGHee  = swGEl===hEl_;
+    const isSwGGi   = swGEl===gEl_;
+
+    // 이벤트별 추론 문장
+    const inferences = [];
+
+    // ① 결혼·인연 — 일지충이 핵심
+    // 충(冲)의 원리: 배우자궁의 "움직임" — 좋고 나쁨이 아니라 변화의 신호
+    // 방향 판단: 세운 전체 길흉(total)으로 결정
+    //   길한 세운 + 일지충 → 인연이 없던 사람은 생기고, 있던 사람은 결실
+    //   흉한 세운 + 일지충 → 기존 관계가 흔들리고 갈등·이별 가능
+    if(swChungIlji){
+      if(total >= 1){
+        inferences.push(`세운 지지 ${JH_L[swJ]}가 일지 ${JH_L[dj_]}를 충(冲)하여 배우자·인연 자리에 큰 움직임이 있는 해입니다. 길한 흐름이라면 <strong>새로운 인연이 찾아오거나 기존 관계가 결실을 맺는</strong> 방향으로 발현됩니다.`);
+      } else if(total <= -1){
+        inferences.push(`세운 지지 ${JH_L[swJ]}가 일지 ${JH_L[dj_]}를 충하여 배우자·인연 자리가 흔들리는 해입니다. 흉한 흐름이라면 <strong>관계의 갈등·이별·분리</strong>로 이어질 수 있어 주의가 필요합니다.`);
+      } else {
+        inferences.push(`세운 지지 ${JH_L[swJ]}가 일지 ${JH_L[dj_]}를 충하여 배우자·인연 자리에 변화가 오는 해입니다. 충은 이동과 변화의 신호로, 새로운 인연의 시작이 될 수도, 기존 관계의 전환점이 될 수도 있습니다.`);
+      }
+    }
+
+    // 일지 육합 → 인연 결실
+    if(swYukhIlji){
+      if(isGood){
+        inferences.push(`세운 지지가 일지와 육합(六合)하여 배우자·인연 자리가 부드럽게 활성화됩니다. <strong>결혼·약혼·동거</strong> 등 관계의 결실이 맺어질 가능성이 있습니다.`);
+      } else {
+        inferences.push(`세운 지지가 일지와 육합하여 인연 자리가 묶이는 해입니다. 새로운 인연보다 기존 관계가 변질되거나 얽히는 흐름일 수 있습니다.`);
+      }
+    }
+
+    // ② 자녀·임신·출산 — 성별에 따라 자식성 오행이 다름
+    // 여자: 자식 = 식상(食傷) — 내가 낳는 오행
+    // 남자: 자식 = 관살(官殺) — 나를 극하는 오행
+    const isMale_ = (window._gender || 'male') === 'male';
+    const GEUK_L  = [2,3,4,0,1];
+    const childEl_ = isMale_
+      ? [0,1,2,3,4].find(i=>GEUK_L[i]===GEL_L[dg_])  // 남자: 관살 오행
+      : SAENG_BY_J[GEL_L[dg_]] === undefined            // 여자: 식상 오행
+        ? null
+        : [GEL_L[dg_]+1]%5;
+    // 더 명확하게
+    const childElMale_  = [0,1,2,3,4].find(i=>GEUK_L[i]===GEL_L[dg_]); // 관살
+    const childElFemale_= (GEL_L[dg_]+1)%5;                              // 식상
+    const childEl = isMale_ ? childElMale_ : childElFemale_;
+
+    // 세운 지지 지장간에 자식성 오행 있는지
+    const swJHasChildEl = swJGans.some(g=>GEL_L[GH_IDX_L[g]]===childEl);
+    // 세운 천간에 자식성 오행 있는지
+    const swGHasChildEl = GEL_L[swG]===childEl;
+    // 대운 천간과 세운 천간이 합하면서 자식성 오행으로 화하는지
+    const CHEONGAN_HAP_C={};
+    [[0,5,2],[1,6,3],[2,7,4],[3,8,0],[4,9,1]].forEach(([a,b,el])=>{
+      CHEONGAN_HAP_C[`${a}-${b}`]=el;CHEONGAN_HAP_C[`${b}-${a}`]=el;
+    });
+    const dwGanHapSwHw = CHEONGAN_HAP_C[`${dwG}-${swG}`];
+    const isDwSwHapChildEl = dwGanHapSwHw===childEl;
+
+    // 자식성 통근: 자식성 오행이 세운 지지에 뿌리를 내리는지
+    const childElHasRoot = swJGans.some(g=>GEL_L[GH_IDX_L[g]]===childEl) || JEL_L[swJ]===childEl;
+
+    if(swJHasChildEl || swGHasChildEl || isDwSwHapChildEl){
+      const childDesc = isMale_ ? `관살(${ENM_L[childEl]})` : `식상(${ENM_L[childEl]})`;
+      let childMsg = `세운에서 자식성인 <strong>${childDesc}</strong>이 활성화됩니다. `;
+      if(isDwSwHapChildEl){
+        childMsg += `특히 대운 천간 ${GH_L[dwG]}과 세운 천간 ${GH_L[swG]}이 합하여 ${ENM_L[childEl]} 오행으로 화하고, `;
+      }
+      if(childElHasRoot){
+        childMsg += `세운 지지 ${JH_L[swJ]}에 통근하여 에너지가 실립니다. `;
+      }
+      childMsg += `<strong>자녀 임신·출산·자녀 소식</strong>이 있을 가능성이 있는 해입니다.`;
+      if(isGood || isSwGYong || isSwGHee || isDwSwHapChildEl){
+        inferences.push(childMsg);
+      }
+    }
+
+    // 일지충 + 인성 지지 충받아 열림 → 전통적 임신 신호 (여성 중심)
+    if(!isMale_ && swChungIlji && JEL_L[dj_]===inEl_ && (isGood || !isSwGGi)){
+      inferences.push(`일지 ${JH_L[dj_]}(인성·${ENM_L[inEl_]})이 충받아 에너지가 분출됩니다. 전통 명리에서 인성 지지가 충받는 해는 <strong>임신·출산</strong>과 연결되는 경우가 많습니다.`);
+    }
+
+    // ③ 재물·사업
+    if(cats.includes('MONEY') && isGood){
+      inferences.push('재물 흐름이 활발해지는 해입니다. 예상치 못한 수입이 들어오거나 사업·투자에서 좋은 결과가 나올 수 있습니다.');
+    }
+    if(cats.includes('MONEY') && isBad){
+      inferences.push('재물 손실이나 금전 사고에 주의가 필요한 해입니다. 큰 투자·보증·대출 결정을 미루는 것이 현명합니다.');
+    }
+
+    // ④ 직업·커리어
+    if(cats.includes('CAREER') && isGood){
+      inferences.push('직업·커리어에서 좋은 기회가 찾아오는 해입니다. 이직·승진·창업·자격 취득 등에서 성과가 날 가능성이 있습니다.');
+    }
+    if(cats.includes('CAREER') && isBad){
+      inferences.push('직장·사업에서 갈등이나 변동이 생기기 쉬운 해입니다. 조직 내 마찰이나 커리어 방향의 혼란이 있을 수 있습니다.');
+    }
+
+    // ⑤ 이동·변화
+    if(cats.includes('MOVE') && total >= 1){
+      inferences.push('이사·이동·환경 변화의 에너지가 강한 해입니다. 타지·해외 이동이나 거주지·직장 환경의 큰 변화가 있을 수 있습니다.');
+    }
+
+    // ⑥ 건강
+    if(cats.includes('HEALTH') && isBad){
+      inferences.push('건강 관리에 신경 써야 하는 해입니다. 무리한 일정보다 체력 관리를 우선으로 하는 것이 좋습니다.');
+    }
+
+    // ⑦ 관계·가족
+    if(cats.includes('RELATION') && isGood && !swChungIlji && !swYukhIlji){
+      inferences.push('인간관계가 풍성해지고 귀인이 나타나는 해입니다. 새로운 인연이나 기존 관계가 깊어지는 흐름입니다.');
+    }
+    if(cats.includes('RELATION') && isBad && !swChungIlji){
+      inferences.push('주변 관계에서 갈등이나 이별이 생기기 쉬운 해입니다. 말과 행동에 각별히 주의하세요.');
+    }
+
+    // ⑦ 세운 천간이 일간과 합 → 특별한 인연·계기
+    if(swGanHapIlgan){
+      inferences.push(`세운 천간 ${GH_L[swG]}이 일간 ${GH_L[dg_]}과 천간합하여 특별한 인연이나 계기가 찾아오는 해입니다. 중요한 만남, 계약, 결정이 이 해를 중심으로 이루어질 가능성이 높습니다.`);
+    }
+
+    // ⑧ 총평
+    let summary = '';
+    if(total >= 4)       summary = `전반적으로 <strong>매우 좋은 한 해</strong>가 될 가능성이 높습니다.`;
+    else if(total >= 2)  summary = `<strong>순조로운 흐름</strong>의 한 해로 꾸준히 나아가기에 좋습니다.`;
+    else if(total >= 0)  summary = `큰 변동 없이 <strong>평온하게 흘러가는 해</strong>입니다.`;
+    else if(total >= -2) summary = `다소 <strong>주의가 필요한 해</strong>입니다. 신중하게 움직이는 것이 현명합니다.`;
+    else                 summary = `<strong>조심해야 할 해</strong>입니다. 무리한 결정보다 수성(守成)에 집중하세요.`;
+
+    if(inferences.length === 0 && !summary) return '';
+
+    const inferenceText = inferences.length
+      ? inferences.map(t=>`• ${t}`).join('<br>')
+      : '';
+
+    return `
+    <div style="margin-top:12px;padding:11px 13px;background:linear-gradient(135deg,#f8f9ff,#f0f4ff);
+      border-radius:10px;border:1px solid #d0d8f0;border-left:3px solid #1a5fa8;">
+      <div style="font-size:10px;font-weight:700;color:#1a5fa8;letter-spacing:0.1em;margin-bottom:7px;">
+        🔮 이 해에 있었을 법한 일
+      </div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.85;">
+        ${summary}
+        ${inferenceText ? `<br><br>${inferenceText}` : ''}
+      </div>
+    </div>`;
+  }
+
+  const lifeInferenceHtml = (()=>{ try{ return buildLifeInference(result, sw, dwG, dwJ, year); }catch(e){ console.error('lifeInference 오류:',e); return ''; } })();
+
   return `
   <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin-top:14px;">
 
@@ -9357,6 +9679,9 @@ function renderSwScore(year, s, dwG, dwJ) {
         <div style="font-size:26px;font-weight:700;color:${result.total>=0?'#0e7c6a':'#c0392b'};">${result.total>0?'+'+result.total:result.total}</div>
       </div>
     </div>
+
+    <!-- 인생사 추론 -->
+    ${lifeInferenceHtml}
 
     <!-- 세운 분석 항목 -->
     <div style="padding:12px 16px;border-bottom:1px solid var(--bd);">
