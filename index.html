@@ -5314,10 +5314,54 @@ function getDwHaeseok(dwG, dwJ, geok, score, s) {
       // 일간과 합에 묶인 천간을 대운이 합거 → 일간 해방!
       pts+=2;
       reasons.push(`${hapGeoName}합거→일간 속박 해제(+2)`);
-    } else if(hapGeoEl===gEl){pts+=1;reasons.push(`${hapGeoName}합거→기신(${ENM_S[gEl]}) 약화`);}
-    else if(hapGeoEl===guEl){pts+=1;reasons.push(`${hapGeoName}합거→구신(${ENM_S[guEl]}) 약화`);}
-    else if(hapGeoEl===yEl){pts-=1;reasons.push(`${hapGeoName}합거→용신(${ENM_S[yEl]}) 약화`);}
-    else if(hapGeoEl===hEl){pts-=1;reasons.push(`${hapGeoName}합거→희신(${ENM_S[hEl]}) 약화`);}
+    } else if(hapGeoEl===gEl||hapGeoEl===guEl){
+      // ★ 기신/구신 합거 → 기신 제거 효과
+      // 과다 기신일 때 합거는 훨씬 효과적 — 기신이 여러 개면 하나 줄이는 게 더 좋음
+      const total_hap=score.reduce((a,b)=>a+b,0);
+      const gishinElPct = total_hap>0 ? Math.round(score[hapGeoEl]/total_hap*100) : 0;
+      let hapBonus = hapGeoEl===gEl ? 2 : 1; // 기신 합거=+2, 구신=+1 (기존 +1에서 강화)
+      if(gishinElPct >= 30){
+        // 기신이 30% 이상 과다 → 합거 효과 극대화
+        hapBonus += 1;
+        reasons.push(`${hapGeoName}합거→${hapGeoEl===gEl?'기신':'구신'}(${ENM_S[hapGeoEl]}) 제거 (+${hapBonus})`);
+      } else {
+        reasons.push(`${hapGeoName}합거→${hapGeoEl===gEl?'기신':'구신'}(${ENM_S[hapGeoEl]}) 약화 (+${hapBonus})`);
+      }
+      pts += hapBonus;
+
+      // ★ 합화(合化) 방향이 용신/희신이면 추가 보너스
+      // 戊癸合化火: 합화 오행 = hw (CHEONGAN_HAP_EL_L[dwG-p.g])
+      const hapHwaEl = CHEONGAN_HAP_EL_L[`${dwG}-${s.find(p=>GEL_L[p.g]===hapGeoEl)?.g??-1}`];
+      if(hapHwaEl !== undefined && hapHwaEl !== null){
+        // 합화 오행이 용신·희신인지 확인
+        if(hapHwaEl === yEl){
+          pts += 2;
+          reasons.push(`합화→${ENM_S[hapHwaEl]}(용신) 생성 (+2)`);
+        } else if(hapHwaEl === hEl){
+          pts += 1;
+          reasons.push(`합화→${ENM_S[hapHwaEl]}(희신) 생성 (+1)`);
+        }
+        // 합화 오행이 대운 지지에 통근하면 추가 +1
+        const dwJEl5=[4,2,0,0,2,1,1,2,3,3,2,4][dwJ];
+        if(dwJEl5 === hapHwaEl){
+          pts += 1;
+          reasons.push(`합화 오행이 대운 지지에 통근 → 실질 발현 (+1)`);
+        }
+      }
+    } else if(hapGeoEl===yEl){pts-=2;reasons.push(`${hapGeoName}합거→용신(${ENM_S[yEl]}) 약화(-2)`);}
+    else if(hapGeoEl===hEl){pts-=1;reasons.push(`${hapGeoName}합거→희신(${ENM_S[hEl]}) 약화(-1)`);}
+    // ★ 일간 합거: 대운이 일간을 직접 합거 (기존보다 세분화)
+    else if(hapGeoEl===GEL_L[dg_inner]){
+      // 일간이 합거됨 → 일간 약화이지만, 합화가 용신이면 상쇄
+      const hapHwaEl2 = CHEONGAN_HAP_EL_L[`${dwG}-${dg_inner}`];
+      if(hapHwaEl2 === yEl){
+        pts += 1;
+        reasons.push(`일간 합화→${ENM_S[yEl]}(용신) — 합화가 용신 방향이라 오히려 길함 (+1)`);
+      } else {
+        pts -= 1;
+        reasons.push(`${hapGeoName}합거→일간 약화(-1)`);
+      }
+    }
   }
 
   // 충 효과: 원국 용신 지지를 충하면 -1, 기신 지지를 충하면 +1
@@ -5946,7 +5990,7 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
   const bijipRatio = p(score[biEl]);
   const isBijipOver = bijipRatio >= 25;
 
-  if(isJunghwa && !isBijipGeok){  // 비겁格이면 중화여도 신강 분기로
+  if(isJunghwa && !isBijipGeok){ // 비겁格은 중화여도 신강 분기로
     const candidates=[sikEl,jaeEl,gwanEl,biEl,inEl];
     let minEl=candidates.reduce((a,b)=>score[a]<score[b]?a:b);
 
@@ -5970,7 +6014,7 @@ function calcEokbuYongshin(s,score,sg,geokInfo){
       }
       desc += ` 단, 비겁(${ENM[biEl]}) 오행이 ${isBijipGeok?'格을 이루거나 ':'' }${bijipRatio}%로 과다하여 실질적으로 기신 역할을 합니다. 비겁 오행이 강해지는 운에서는 에너지 분산과 내적 혼란에 주의하세요.`;
     }
-  } else if(isGang){
+  } else if(isGang || isBijipGeok){  // ★ 비겁格은 중화여도 신강 처리
     const mJiEl=JEL[s[1].j];
     const cands=[{el:gwanEl,score:score[gwanEl]+(gwanEl===mJiEl?5:0)},
                  {el:jaeEl, score:score[jaeEl] +(jaeEl===mJiEl?5:0)},
@@ -9233,19 +9277,159 @@ function interpretGanByeon(g1, g2, rel, str1, str2, dg, allJi, lbl1, lbl2, yongs
   }
 
   if(rel.type==='합') {
+    // ★ 합(合) 해석 전면 개선 ★
+    // 핵심 원칙:
+    // 1. 합거되는 천간이 기신/구신이면 → 기신 제거 = 오히려 길함
+    // 2. 합화 방향이 용신/희신이면 → 추가 길함
+    // 3. 일간도 과다 기신(신강 비겁格)이면 합거가 오히려 좋을 수 있음
     // 합화 여부: 지지에 합화 오행이 있으면 합화 성립
-    const hwJi = [4,3,1,2,0]; // 합화 오행 → 지지 대표
-    // 합화 성립 조건: 합화 오행 지지가 있거나 일간이 합화 오행과 같은 경우
     const canHwa = allJi.some(j=>JEL[j]===rel.info.hw) || GEL[dg]===rel.info.hw;
-    const score = (g1===dg||g2===dg) ? -1 : 0; // 일간이 합에 묶이면 불리
+    const hwEl = rel.info.hw; // 합화 오행
+
+    // 합에 묶이는 두 천간의 오행
+    const el1 = GEL[g1], el2 = GEL[g2];
+    // 일간이 합에 포함됐는지 — lbl 기반으로 확인 (g가 같아도 레이블이 일간인 것만)
+    const isDgInHap = lbl1==='일간' || lbl2==='일간';
+    // 합거되는 상대 천간 (일간이 합에 있을 때, 상대방)
+    const peer = isDgInHap ? (lbl1==='일간' ? g2 : g1) : null;
+    const peerEl = peer !== null ? GEL[peer] : null;
+
+    let score = 0;
+    let desc = '';
+    let color = '#1a5fa8';
+
+    if(yongshinInfo) {
+      const {yEl, hEl, gEl, qEl} = yongshinInfo;
+
+      if(isDgInHap) {
+        // 일간이 합에 포함된 경우
+        const dgEl = GEL[dg];
+        const isDgGishin = gEl !== null && dgEl === gEl; // 일간 자체가 기신(신강 비겁格)
+        
+        // 상대 천간(peer)이 기신/구신이면 → 기신 제거 효과 → 좋음!
+        if(peerEl===gEl) {
+          // 기신 천간이 합거됨 → 기신 기능 소멸
+          score = canHwa ? 2 : 1;
+          const extraHwa = canHwa && (hwEl===yEl||hwEl===hEl)
+            ? ` 합화 ${['木','火','土','金','水'][hwEl]}이 ${hwEl===yEl?'용신':'희신'} 방향 — 더욱 길합니다!` : '';
+          desc = `일간 ${n1===GH[dg]?n1:n2}과 기신 ${n1===GH[dg]?n2:n1}이 천간합을 이룹니다. 기신(${['木','火','土','金','水'][gEl]}) 천간의 기능이 합거되어 소멸 — 오히려 길합니다.${extraHwa}`;
+          color = '#0e7c6a';
+        } else if(peerEl===qEl) {
+          // 구신 합거
+          score = canHwa ? 1 : 0;
+          desc = `구신 ${n1===GH[dg]?n2:n1}이 일간과 합하여 구신 기능이 약화됩니다. 소소한 방해가 줄어드는 효과입니다.`;
+          color = '#1a5fa8';
+        } else if(isDgGishin && peerEl===yEl) {
+          // ★ 핵심 케이스: 일간(기신)이 용신 천간과 합
+          score = canHwa ? 3 : 2;
+          const hwaBonus = canHwa && hwEl===yEl ? ' 합화 방향도 용신 — 최상의 조합!'
+                         : canHwa && hwEl===hEl ? ' 합화가 희신 방향 — 더욱 좋습니다.'
+                         : canHwa ? ` 합화 ${['木','火','土','金','水'][hwEl]}이 발현됩니다.` : '';
+          const who = (g1===dg) ? n1 : n2; // 일간 글자
+          const peer2 = (g1===dg) ? n2 : n1; // 상대 글자
+          desc = `${who}(일간·기신 ${['木','火','土','金','水'][dgEl]})이 용신 ${peer2}(${['木','火','土','金','水'][peerEl]})과 천간합을 이룹니다. 과다한 기신이 합거로 소멸 — 탁월한 구조입니다.${hwaBonus}`;
+          color = '#0e7c6a';
+        } else if(peerEl===yEl) {
+          // 일간이 기신이 아닌데 용신 합거 → 불리
+          score = -2;
+          desc = `일간 ${n1===GH[dg]?n1:n2}과 용신 천간 ${n1===GH[dg]?n2:n1}이 합에 묶여 용신의 활동이 제한됩니다. 불리한 구조입니다.`;
+          color = '#c0392b';
+        } else if(peerEl===hEl) {
+          // 희신 합거 → 소불리
+          score = -1;
+          desc = `일간과 희신 천간 ${n1===GH[dg]?n2:n1}이 합에 묶여 희신의 활동이 다소 제한됩니다.`;
+          color = '#b07d1a';
+        } else {
+          // 중립 합거
+          score = 0;
+          desc = `일간 ${n1===GH[dg]?n1:n2}과 ${n1===GH[dg]?n2:n1}이 천간합을 이루어 특별한 인연이나 계기가 찾아오는 해입니다.`;
+          color = '#5a6a8a';
+        }
+        // 합화 방향 추가 보너스 (기신 합거가 아닌 경우에도)
+        if(peerEl!==gEl && canHwa) {
+          const JEL_LD=[4,2,0,0,2,1,1,2,3,3,2,4];
+          const GEUK_LD=[2,3,4,0,1];
+          const dwJEl_d=JEL_LD[allJi[4]];
+          const dwGeuksHwa_d=dwJEl_d===GEUK_LD[hwEl];
+          const ENM2d=['木','火','土','金','水'];
+          const JH2d=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+          if(hwEl===yEl){ score+=1; desc+=` 합화 ${ENM2d[hwEl]}이 용신 방향 (+)`; color='#0e7c6a'; }
+          else if(hwEl===hEl){ score+=0.5; }
+          else if(hwEl===gEl||hwEl===qEl){
+            const isBad=hwEl===gEl?'기신':'구신';
+            if(dwGeuksHwa_d){
+              score-=0.5;
+              desc+=` 합화 ${ENM2d[hwEl]}이 ${isBad}이나, 대운 지지 ${JH2d[allJi[4]]}이 억제하여 실제 영향 축소.`;
+            } else {
+              score-=(hwEl===gEl?2:1);
+              desc+=` 합화 ${ENM2d[hwEl]}이 ${isBad} — 불리한 에너지가 추가 발현됩니다.`;
+            }
+          }
+        }
+      } else {
+        // 일간이 합에 없는 경우 — 원국/대운/세운 천간끼리의 합
+        // 합거로 기신이 묶이면 좋고, 용신이 묶이면 나쁨
+        // 어느 쪽이 기신인지 판단
+        const isEl1Gi = el1===gEl, isEl2Gi = el2===gEl;
+        const isEl1Yong = el1===yEl, isEl2Yong = el2===yEl;
+        if(isEl1Gi||isEl2Gi) {
+          score = canHwa ? 2 : 1;
+          const giEl = isEl1Gi?el1:el2;
+          desc = `기신(${['木','火','土','金','水'][giEl]}) 천간이 합거되어 기신 기능이 약화됩니다. 방해 에너지가 줄어드는 길한 구조입니다.`;
+          color = '#0e7c6a';
+        } else if(isEl1Yong||isEl2Yong) {
+          // 용신 천간이 합거됨 → 불리
+          score = -2;
+          const yongNm = isEl1Yong ? n1 : n2;
+          desc = `용신(${['木','火','土','金','水'][yEl]}) 천간 ${yongNm}이 합에 묶여 용신의 활동이 제한됩니다. 불리한 구조입니다.`;
+          color = '#c0392b';
+        } else {
+          score = canHwa ? 1 : 0;
+          desc = canHwa
+            ? `${rel.info.name}이 성립하여 ${rel.info.result}로 화합니다. 두 에너지가 결합되어 새로운 오행이 작동합니다.`
+            : `${rel.info.name} 조합이나 합화 조건 미충족 — 두 천간이 묶여 작용력이 다소 약해집니다.`;
+          color = '#1a5fa8';
+        }
+        // 합화 방향 추가 보너스/패널티
+        if(canHwa && !(isEl1Gi||isEl2Gi)) {
+          const JEL_L2=[4,2,0,0,2,1,1,2,3,3,2,4];
+          const GEUK_L2=[2,3,4,0,1];
+          const dwJEl2=JEL_L2[allJi[4]];
+          const dwGeuksHwa = dwJEl2===GEUK_L2[hwEl];
+          const ENM2=['木','火','土','金','水'];
+          const JH2s=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+          if(hwEl===yEl){
+            score+=1; desc+=` 합화 ${ENM2[hwEl]}이 용신 방향 — 더욱 길합니다.`; color='#0e7c6a';
+          } else if(hwEl===gEl||hwEl===qEl){
+            // 합화 기신/구신 — 불리
+            const isBadEl = hwEl===gEl ? '기신' : '구신';
+            if(dwGeuksHwa){
+              // 대운 지지가 합화 오행을 극 → 완충
+              score-=0.5;
+              desc+=` 합화 ${ENM2[hwEl]}이 ${isBadEl} 방향이나, 대운 지지 ${JH2s[allJi[4]]}이 이를 억제하여 실제 영향은 축소됩니다.`;
+            } else {
+              score -= (hwEl===gEl ? 2 : 1);
+              desc+=` 합화 ${ENM2[hwEl]}이 ${isBadEl} 방향 — 합화로 불리한 에너지가 추가 발현됩니다.`;
+            }
+          }
+        }
+      }
+    } else {
+      // yongshinInfo 없을 때 기존 로직
+      score = isDgInHap ? -1 : 0;
+      desc = canHwa
+        ? `${rel.info.name}이 성립하여 ${rel.info.result}로 화합니다. ${isDgInHap?'일간이 합에 묶여 자유로운 활동이 제한됩니다.':'두 에너지가 결합되어 새로운 오행이 작동합니다.'}`
+        : `${rel.info.name} 조합이지만 합화 조건 미충족 — 두 천간이 묶여 작용력이 약해집니다.`;
+      color = isDgInHap ? '#b07d1a' : '#1a5fa8';
+    }
+
+    score = Math.round(score * 10) / 10; // 소수점 정리
     return {
       score,
       label: `${n1}${n2} 천간합`,
-      desc: canHwa
-        ? `${rel.info.name}이 성립하여 ${rel.info.result}로 화합니다. ${g1===dg||g2===dg?'일간이 합에 묶여 자유로운 활동이 제한됩니다.':'두 에너지가 결합되어 새로운 오행이 작동합니다.'}`
-        : `${rel.info.name} 조합이지만 지지 환경 미충족으로 합화는 불성립. 두 천간이 묶여 서로 작용력이 약해집니다. (${ss1}과 ${ss2}의 에너지 상쇄)`,
-      color: g1===dg||g2===dg ? '#b07d1a' : '#1a5fa8',
-      cats: ['CAREER'],
+      desc,
+      color,
+      cats: score > 0 ? ['CAREER','MONEY'] : score < 0 ? ['MONEY'] : ['CAREER'],
     };
   }
 
