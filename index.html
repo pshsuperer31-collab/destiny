@@ -5379,7 +5379,20 @@ function getDwHaeseok(dwG, dwJ, geok, score, s) {
       pts-=1;
       reasons.push(`大運지지${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][dwJ]}+일지${['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'][jiList[2]]}육합→일주 불안정`);
     } else if(yukhMatchEl===yEl){
-      pts-=1;reasons.push('원국 용신 지지 육합거');
+      // ★ 육합이 도움오행(비겁/인성) 방향으로 화(化)하는지 확인
+      // 육합 화오행: 子丑→土, 寅亥→木, 卯戌→火, 辰酉→金, 巳申→水, 午未→火
+      const YUKH_HWA={0:2,1:2,2:0,11:0,3:1,10:1,4:3,9:3,5:4,8:4,6:1,7:1};
+      const yukhHwaEl=YUKH_HWA[dwJ];
+      const dEl_yu=GEL_L[s[2].g]; // 일간 오행 (비겁)
+      const inEl_yu=SAENG_BY_L[dEl_yu]; // 인성 오행
+      const yukhHwaIsHelp=(yukhHwaEl===dEl_yu||yukhHwaEl===inEl_yu);
+      if(yukhHwaIsHelp){
+        // 육합화 방향이 도움오행 → 실질적으로 좋은 효과
+        pts+=0; // 패널티 상쇄
+        reasons.push(`원국 용신 지지 육합이나 합화(${['木','火','土','金','水'][yukhHwaEl]})가 도움오행 방향 → 실질 영향 미미`);
+      } else {
+        pts-=1;reasons.push('원국 용신 지지 육합거→용신 뿌리 약화');
+      }
     } else if(yukhMatchEl===gEl){
       pts+=1;reasons.push('원국 기신 지지 육합거→기신 약화');
     }
@@ -6318,7 +6331,10 @@ function calcDwGeok(s, dwG, dwJ, dwScore) {
       }
     }
     // 가종格 체크
-    else if(helpRatio >= 0.10 && helpRatio <= 0.28){
+    // ★ 대운 천간이 인성/비겁(도움오행)이면 실질적으로 일간을 생하므로 가종格 억제
+    const dwGEl5_=GEL[dwG];
+    const dwGIsHelp5=(dwGEl5_===inEl5||dwGEl5_===biEl5);
+    if(dwGeokType==='NAE' && helpRatio >= 0.10 && helpRatio <= 0.28 && !dwGIsHelp5){
       const opts2 = [
         {el:sikEl5, type:'종아', ratio:score5[sikEl5]/total5},
         {el:jaeEl5, type:'종재', ratio:score5[jaeEl5]/total5},
@@ -9381,7 +9397,13 @@ function interpretGanByeon(g1, g2, rel, str1, str2, dg, allJi, lbl1, lbl2, yongs
           // 용신 천간이 합거됨 → 불리
           score = -2;
           const yongNm = isEl1Yong ? n1 : n2;
-          desc = `용신(${['木','火','土','金','水'][yEl]}) 천간 ${yongNm}이 합에 묶여 용신의 활동이 제한됩니다. 불리한 구조입니다.`;
+          const grabberNm = isEl1Yong ? n2 : n1; // 용신을 합거하는 상대
+          const grabberEl = isEl1Yong ? el2 : el1;
+          const grabberRole = grabberEl===hEl ? `희신(${['木','火','土','金','水'][hEl]})` 
+                            : grabberEl===gEl ? `기신(${['木','火','土','金','水'][gEl]})`
+                            : grabberEl===qEl ? `구신(${['木','火','土','金','水'][qEl??grabberEl]})`
+                            : `${['木','火','土','金','水'][grabberEl]}`;
+          desc = `${grabberRole} 천간 ${grabberNm}이 용신 ${yongNm}(${['木','火','土','金','水'][yEl]})을 합거하여 용신의 활동이 제한됩니다. 用神이 왔어도 합에 묶여 실질 발현이 어렵습니다.`;
           color = '#c0392b';
         } else {
           score = canHwa ? 1 : 0;
@@ -9928,6 +9950,11 @@ function calcGanByeon(s, dwG, dwJ, swG, swJ) {
   }
 
   const results = [];
+  // ★ 천간합 중복 방지: 한 천간(인덱스)은 합에 한 번만 참여
+  // 예) 癸(연간) + 戊(대운) 합 → 癸(연간) 이미 합에 묶임 → 癸(월간) + 戊(대운) 합은 별도
+  // 단, 완전히 동일한 lbl 쌍 중복은 방지
+  const hapUsed = new Set(); // 합에 사용된 allGan 인덱스 (한 인덱스는 한 합에만)
+  
   for(let i=0;i<allGan.length;i++){
     for(let j=i+1;j<allGan.length;j++){
       const {g:g1,lbl:l1}=allGan[i];
@@ -9937,6 +9964,13 @@ function calcGanByeon(s, dwG, dwJ, swG, swJ) {
 
       const rel = classifyGanRel(g1, g2);
       if(rel.type==='무관') continue;
+
+      // ★ 합(合): 이미 합에 사용된 인덱스면 스킵
+      if(rel.type==='합'){
+        if(hapUsed.has(i) || hapUsed.has(j)) continue;
+        hapUsed.add(i);
+        hapUsed.add(j);
+      }
 
       const str1 = tonggeunStrength(g1, allJi);
       const str2 = tonggeunStrength(g2, allJi);
