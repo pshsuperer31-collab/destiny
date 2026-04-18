@@ -9993,9 +9993,15 @@ function calcSwScore(s, dwG, dwJ, swG, swJ) {
   // s: 사주 4기둥, dwG/dwJ: 대운 천간/지지, swG/swJ: 세운 천간/지지
   const details = [];
   let total = 0;
+  const dg = s[2].g;
 
-  // 1. 십성 점수
-  const dg = s[2].g; // 일간
+  // ★ 용신 정보 가져오기 (형살 오행 판단용)
+  const _eokbu2 = window._eokbu || null;
+  const _geok2  = window._geok  || null;
+  let yEl = _eokbu2?.yongshinEl ?? _geok2?.yongshinEl ?? null;
+  let hEl = _eokbu2?.heeshinEl  ?? _geok2?.heeshinEl  ?? null;
+  let gEl = _eokbu2?.gishinEl   ?? _geok2?.gishinEl   ?? null;
+  let qEl = _eokbu2?.gushinEl   ?? _geok2?.gushinEl   ?? null;
   function getSS2(dg,tg){
     const de=GEL[dg],te=GEL[tg];
     const same=(dg%2===0)===(tg%2===0);
@@ -10052,30 +10058,108 @@ function calcSwScore(s, dwG, dwJ, swG, swJ) {
   }
 
   // 3. 형(刑) 분석
+  // ★ 핵심 원칙: 형살 오행이 용신/희신이면 힘들지만 도움, 기신/구신이면 고통
+  // 합화 오행이 발생하면 그 오행으로 추가 판단
   const HYUNG2 = {2:[5,8],5:[2,8],8:[2,5],0:[9],9:[0],3:[6],6:[3],1:[10],10:[1,7],7:[10]};
   const pilarJis = s.map(p=>p.j);
 
-  // 원국 지지들과 형 체크
-  s.forEach((p,i) => {
-    if(HYUNG2[swJ]&&HYUNG2[swJ].includes(p.j)) {
-      const sc = (swJ===5&&p.j===2)||(swJ===2&&p.j===5) ? -2 : -1; // 寅巳형 특별처리
-      total += sc;
-      const isInSa = (swJ===5&&p.j===2)||(swJ===2&&p.j===5);
-      details.push({ label:'형살', score:sc,
-        desc: isInSa
-          ? '寅巳형 — 집중력 오류·언어 실수·직업 갈등 (2001/2013/2025 검증)'
-          : JH[p.j]+'와 형살 — '+(['연','월','일','시'][i])+'주 에너지 충돌',
-        color:'#c0392b' });
-    }
-  });
-
-  // 寅巳申 삼형 완성 체크
+  // 삼형 완성 여부 먼저 체크 (완성 시 개별 형살 중복 방지)
   const allJi = [...pilarJis, dwJ, swJ];
   const samhyung = [2,5,8]; // 寅巳申
   const samhyungCnt = samhyung.filter(j=>allJi.includes(j)).length;
-  if(samhyungCnt>=3 && samhyung.includes(swJ)) {
-    total += -4;
-    details.push({ label:'寅巳申 삼형', score:-4, desc:'⚠ 삼형 완성 — 극단적 충격 신호 (2004/2028 검증)', color:'#c0392b' });
+  const isSamhyungComplete = samhyungCnt>=3 && samhyung.includes(swJ);
+
+  // 형살 오행 → 용신/기신 판단 헬퍼
+  const JEL_SW=[4,2,0,0,2,1,1,2,3,3,2,4];
+  const YUKH_HWA2={0:2,1:2,2:0,11:0,3:1,10:1,4:3,9:3,5:4,8:4,6:1,7:1};
+  const ENM_SW=['木','火','土','金','水'];
+  const JH_SW=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+  function hyungScore(jiA, jiB, lblA){
+    // jiA: 세운 지지, jiB: 원국 지지, lblA: 원국 기둥명
+    const elA=JEL_SW[jiA], elB=JEL_SW[jiB];
+    // 합화 오행 (육합)
+    const hwaEl2=YUKH_HWA2[jiA]; // 세운 지지와 육합화 오행
+    // 세운 지지 오행 판단
+    const isYongA=elA===yEl, isHeeA=elA===hEl;
+    const isGiA=elA===gEl,   isGuA=elA===qEl;
+    // 원국 지지 오행 판단
+    const isYongB=elB===yEl, isHeeB=elB===hEl;
+    const isGiB=elB===gEl,   isGuB=elB===qEl;
+    
+    let sc=0, desc='', color='#b07d1a';
+    
+    if(isYongA||isHeeA){
+      // 세운 형살 오행이 용신/희신 → 힘들지만 도움
+      sc = isYongA ? 1 : 0.5;
+      desc = `${JH_SW[jiB]}(${lblA})와 형살 — ${ENM_SW[elA]}(${isYongA?'용신':'희신'})이 충돌·긴장하며 에너지 방출. 힘들지만 도움이 되는 방향.`;
+      color = '#1a5fa8';
+    } else if(isGiA||isGuA){
+      // 세운 형살 오행이 기신/구신 → 고통·손실
+      sc = isGiA ? -2 : -1;
+      desc = `${JH_SW[jiB]}(${lblA})와 형살 — ${ENM_SW[elA]}(${isGiA?'기신':'구신'})이 충돌. 고통·손실·갈등 주의.`;
+      color = '#c0392b';
+    } else {
+      // 중립
+      sc = -1;
+      desc = `${JH_SW[jiB]}(${lblA})와 형살 — 긴장·충돌 (${ENM_SW[elA]}).`;
+      color = '#b07d1a';
+    }
+    
+    // 합화 오행 추가 판단
+    if(hwaEl2!=null && pilarJis.concat([dwJ]).includes(
+      Object.keys(YUKH_HWA2).find(k=>YUKH_HWA2[k]===hwaEl2&&Number(k)!==jiA) && Number(Object.keys(YUKH_HWA2).find(k=>YUKH_HWA2[k]===hwaEl2&&Number(k)!==jiA))
+    )){
+      // 실제 합화 파트너가 원국에 있을 때만
+    }
+    
+    return {sc, desc, color};
+  }
+
+  if(isSamhyungComplete){
+    // 삼형 완성 — 세운 지지 오행 기준 판단
+    const swEl=JEL_SW[swJ];
+    const isYong=swEl===yEl||swEl===hEl;
+    const isGi=swEl===gEl||swEl===qEl;
+    
+    // 삼형에 포함된 모든 오행 확인
+    const samEls=samhyung.map(j=>JEL_SW[j]);
+    const hasYongEl=samEls.some(el=>el===yEl||el===hEl);
+    const hasGiEl=samEls.some(el=>el===gEl||el===qEl);
+    
+    let samSc, samDesc, samColor;
+    if(hasYongEl && !hasGiEl){
+      // 삼형 오행 중 용신/희신 포함, 기신 없음 → 긴장 속 에너지 방출
+      samSc = -1;
+      samDesc = `⚡ 寅巳申 삼형 — 삼형 오행에 ${ENM_SW[yEl]||ENM_SW[hEl]}(용신/희신) 포함. 극도의 긴장감이나 용신 에너지도 함께 방출됩니다. 집중력 극대화.`;
+      samColor = '#1a5fa8';
+    } else if(hasGiEl && !hasYongEl){
+      samSc = -4;
+      samDesc = `⚠ 寅巳申 삼형 — 기신/구신 오행이 삼형에 포함. 고통과 충격이 강함.`;
+      samColor = '#c0392b';
+    } else if(hasYongEl && hasGiEl){
+      // 혼재
+      samSc = -2;
+      samDesc = `⚠ 寅巳申 삼형 — 용신과 기신 오행이 혼재된 삼형. 좋고 나쁨이 뒤섞인 혼돈의 시기.`;
+      samColor = '#b07d1a';
+    } else {
+      samSc = -3;
+      samDesc = `⚠ 寅巳申 삼형 — 강한 에너지 충돌.`;
+      samColor = '#c0392b';
+    }
+    total += samSc;
+    details.push({ label:'寅巳申 삼형', score:samSc, desc:samDesc, color:samColor });
+    // 삼형 완성 시 개별 형살은 스킵 (중복 방지)
+  } else {
+    // 개별 형살 처리
+    s.forEach((p,i) => {
+      if(HYUNG2[swJ]&&HYUNG2[swJ].includes(p.j)) {
+        const lbl=['연','월','일','시'][i]+'지';
+        const {sc,desc,color}=hyungScore(swJ,p.j,lbl);
+        total += sc;
+        details.push({ label:'형살', score:sc, desc, color });
+      }
+    });
   }
 
   // 4. 합(合) 분석
@@ -10324,6 +10408,29 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   const pillarNames = ['연','월','일','시'];
   const pillarCats  = [['FAMILY'],['CAREER'],['HEALTH','RELATION'],['CAREER']];
 
+  // ★ 삼형 완성 여부 미리 체크 (개별 형살 중복 방지용)
+  const JEL_HY=[4,2,0,0,2,1,1,2,3,3,2,4]; // 지지별 오행
+  const ENM_HY=['木','火','土','金','水'];
+  const JH_HY=['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const allJi_pre=[...s.map(p=>p.j),dwJ,swJ];
+  const SAMHYUNG_PRE=[[2,5,8],[0,9],[3,6]];
+  let isSamhyungDone=false;
+  SAMHYUNG_PRE.forEach(set=>{
+    if(set.filter(j=>allJi_pre.includes(j)).length>=3 && set.includes(swJ) && set.length===3)
+      isSamhyungDone=true;
+  });
+
+  // 형살 오행 → 용신/기신 판단 점수 계산
+  function calcHyungScore_(swJi, origJi, lbl){
+    const el=JEL_HY[swJi]; // 세운 지지(충돌 오행) 기준
+    const nm2=JH_HY[origJi];
+    if(el===yEl){ return {sc:+2, desc:`${nm2}(${lbl})와 형살 — ${ENM_HY[el]}(용신) 긴장·발산. 힘들지만 용신 에너지 방출로 결과는 도움.`, color:'#1a5fa8'}; }
+    if(el===hEl){ return {sc:+1, desc:`${nm2}(${lbl})와 형살 — ${ENM_HY[el]}(희신) 긴장·발산. 약한 도움.`, color:'#5a9fd4'}; }
+    if(el===gEl){ return {sc:-2, desc:`${nm2}(${lbl})와 형살 — ${ENM_HY[el]}(기신) 충돌. 고통·손실·갈등.`, color:'#c0392b'}; }
+    if(el===qEl){ return {sc:-1, desc:`${nm2}(${lbl})와 형살 — ${ENM_HY[el]}(구신) 충돌. 소소한 방해.`, color:'#b07d1a'}; }
+    return {sc:-1, desc:`${nm2}(${lbl})와 형살 — ${ENM_HY[el]} 긴장.`, color:'#b07d1a'};
+  }
+
   s.forEach((p,i)=>{
     const weight = [1,2,3,2][i];
     if(isCh_(swJ, p.j)){
@@ -10379,25 +10486,15 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
         color:'#c0392b', cats:[...pillarCats[i], ...(relationMsg?['RELATION']:[])] });
     }
     if(isHyung_(swJ, p.j)){
-      const sc = -(weight-1||1);
-      total += sc;
-      cats.add(pillarCats[i][0]);
-
-      // ★ 형살도 일지 십성 기반 세분화 ★
-      let hyungMsg = `${JH[p.j]}(${pillarNames[i]}주)와 형살 — 집중력·판단 오류`;
-      if(i === 2){
-        const JJG_H2=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
-          ['乙','癸','戊'],['戊','庚','丙'],['丙','己','丁'],['丁','乙','己'],
-          ['戊','壬','庚'],['庚','辛'],['辛','丁','戊'],['戊','甲','壬']];
-        const ganH2=['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
-        const iljuSS2 = getSS_(dg, ganH2.indexOf(JJG_H2[s[2].j][JJG_H2[s[2].j].length-1]));
-        if(['正財','偏財'].includes(iljuSS2)){
-          hyungMsg += ' 💔 일지가 재성 자리로, 가까운 관계나 파트너십에 예상치 못한 갈등이 생길 수 있습니다.';
-          cats.add('RELATION');
-        }
+      // ★ 삼형 완성 시 개별 형살 스킵 (삼형에 이미 포함)
+      if(isSamhyungDone) { /* skip */ }
+      else {
+        // 오행 기반 점수
+        const {sc, desc, color} = calcHyungScore_(swJ, p.j, pillarNames[i]+'주');
+        total += sc;
+        cats.add(pillarCats[i][0]);
+        details.push({ label:pillarNames[i]+'지형', score:sc, desc, color, cats:[...pillarCats[i]] });
       }
-      details.push({ label:pillarNames[i]+'지형', score:sc,
-        desc:hyungMsg, color:'#c0392b', cats:[...pillarCats[i], ...(i===2?['RELATION']:[])] });
     }
     if(isYukh_(swJ, p.j)&&!isCh_(swJ,p.j)){
       const JJG_H3=[['壬','癸'],['癸','辛','己'],['戊','丙','甲'],['甲','乙'],
@@ -10486,10 +10583,31 @@ function calcSwScoreGeneral(s, dwG, dwJ, swG, swJ, geok) {
   SAMHYUNG_SETS.forEach(set=>{
     const cnt=set.filter(j=>allJi.includes(j)).length;
     if(cnt>=3&&set.includes(swJ)&&set.length===3){
-      total += -4; cats.add('HEALTH'); cats.add('CAREER');
-      details.push({ label:'삼형 완성', score:-4,
-        desc:`⚠ ${set.map(j=>JH[j]).join('')} 삼형 — 극단적 충격 신호`,
-        color:'#c0392b', cats:['HEALTH','CAREER'] });
+      // ★ 삼형 오행 중 용신/희신 포함 여부로 점수 결정
+      const JEL_SG=[4,2,0,0,2,1,1,2,3,3,2,4];
+      const setEls=set.map(j=>JEL_SG[j]);
+      const hasYong=setEls.some(el=>el===yEl||el===hEl);
+      const hasGi=setEls.some(el=>el===gEl||el===qEl);
+      let sc2, desc2, color2;
+      if(hasYong&&!hasGi){
+        sc2=-1; color2='#1a5fa8';
+        desc2=`⚡ ${set.map(j=>JH[j]).join('')} 삼형 — 삼형 오행에 용신/희신 포함. 강한 긴장이지만 에너지가 도움 방향으로 작용. 집중력 극대화.`;
+        cats.add('CAREER');
+      } else if(hasGi&&!hasYong){
+        sc2=-4; color2='#c0392b';
+        desc2=`⚠ ${set.map(j=>JH[j]).join('')} 삼형 — 기신/구신 오행이 삼형에 포함. 극단적 충격·고통 주의.`;
+        cats.add('HEALTH'); cats.add('CAREER');
+      } else if(hasYong&&hasGi){
+        sc2=-2; color2='#b07d1a';
+        desc2=`⚠ ${set.map(j=>JH[j]).join('')} 삼형 — 용신과 기신 오행이 혼재. 좋고 나쁨이 동시에 충돌하는 혼돈의 시기.`;
+        cats.add('CAREER');
+      } else {
+        sc2=-3; color2='#c0392b';
+        desc2=`⚠ ${set.map(j=>JH[j]).join('')} 삼형 — 강한 에너지 충돌.`;
+        cats.add('HEALTH');
+      }
+      total += sc2;
+      details.push({ label:'삼형 완성', score:sc2, desc:desc2, color:color2, cats:[...cats] });
     }
   });
 
